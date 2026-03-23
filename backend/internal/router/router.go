@@ -11,26 +11,42 @@ import (
 
 // Router sets up HTTP routes
 type Router struct {
-	mux         *http.ServeMux
-	authHandler *handler.AuthHandler
-	jwtService  *auth.JWTService
+	handler        http.Handler // CORS-wrapped mux
+	mux            *http.ServeMux
+	authHandler    *handler.AuthHandler
+	jwtService     *auth.JWTService
+	allowedOrigins []string
 }
 
 // New creates a new router
 func New(db *database.DB, jwtService *auth.JWTService, authService *auth.Service) *Router {
+	mux := http.NewServeMux()
+	
 	r := &Router{
-		mux:         http.NewServeMux(),
+		mux:         mux,
 		authHandler: handler.NewAuthHandler(authService),
 		jwtService:  jwtService,
+		// Allow frontend origins (add more as needed)
+		allowedOrigins: []string{
+			"http://localhost:5173",
+			"http://localhost:5174",
+			"http://localhost:5175",
+			"http://localhost:5176",
+			"http://localhost:3000", // Common React dev port
+		},
 	}
 
 	r.setupRoutes(db)
+	
+	// Wrap mux with CORS middleware once
+	r.handler = middleware.CORSMiddleware(r.allowedOrigins)(r.mux)
+	
 	return r
 }
 
-// ServeHTTP implements http.Handler
+// ServeHTTP implements http.Handler with CORS middleware
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.mux.ServeHTTP(w, req)
+	r.handler.ServeHTTP(w, req)
 }
 
 func (r *Router) setupRoutes(db *database.DB) {
