@@ -25,7 +25,7 @@ export interface RegisterRequest {
 export interface LoginResponse {
   user: User;
   token: string;
-  expiresAt: string; // ISO timestamp
+  expiresAt: number; // Unix timestamp
 }
 
 // User info response (from /auth/me endpoint)

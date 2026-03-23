@@ -23,6 +23,9 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.ADMIN]: 'Administrator',
 } as const;
 
+// Export Role for use in other files
+export { Role };
+
 // Task statuses
 export const TASK_STATUSES = {
   OPEN: 'open',

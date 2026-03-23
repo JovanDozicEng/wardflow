@@ -1,32 +1,38 @@
 /**
  * RegisterPage component
- * TODO: Implement with React Hook Form + Zod validation
- * TODO: Add email, password, name, role inputs
- * TODO: Add password confirmation
- * TODO: Add link to login page
- * TODO: Show success message
- * TODO: Redirect to dashboard after registration
+ * Full registration page with form and navigation
  */
 
+import { Link } from 'react-router-dom';
+import { RegisterForm } from '../components/RegisterForm';
+import { ROUTES } from '../../../shared/config/routes';
+
 export const RegisterPage = () => {
-  // TODO: Use useAuth hook
-  // TODO: Setup React Hook Form with Zod schema
-  // TODO: Handle form submission
-  // TODO: Redirect on successful registration
-  
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Create your account</h2>
+          <h1 className="text-4xl font-bold text-indigo-600 mb-2">WardFlow</h1>
+          <h2 className="text-2xl font-bold text-gray-900">Create your account</h2>
           <p className="mt-2 text-sm text-gray-600">
             Join WardFlow for better care coordination
           </p>
         </div>
         
-        {/* TODO: Implement RegisterForm component here */}
-        <div className="mt-8 space-y-6">
-          <p className="text-center text-gray-500">Registration form coming soon...</p>
+        <div className="mt-8 bg-white shadow-lg rounded-lg p-6">
+          <RegisterForm />
+          
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link
+                to={ROUTES.LOGIN}
+                className="font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

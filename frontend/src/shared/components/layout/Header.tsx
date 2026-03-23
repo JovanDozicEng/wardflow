@@ -1,16 +1,13 @@
 /**
  * Header component - Top navigation bar
- * TODO: Implement with logo, user menu, notifications
- * TODO: Add mobile hamburger menu toggle
- * TODO: Show user name and role
- * TODO: Add logout button in dropdown
+ * Shows user info and logout button when authenticated
  */
 
+import { useAuth } from '../../../features/auth/hooks/useAuth';
+import { ROLE_LABELS } from '../../utils/constants';
+
 export const Header = () => {
-  // TODO: Get user from auth store
-  // TODO: Implement user dropdown menu
-  // TODO: Add notifications icon
-  // TODO: Add logout handler
+  const { user, isAuthenticated, logout } = useAuth();
   
   return (
     <header className="bg-white border-b border-gray-200 h-16 flex items-center px-4 lg:px-6">
@@ -21,14 +18,22 @@ export const Header = () => {
         </div>
         
         {/* User menu */}
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-700">
-            {/* TODO: Display user name and role */}
-            <span className="font-medium">User Name</span>
-            <span className="text-gray-500 ml-2">Role</span>
+        {isAuthenticated && user && (
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-700">
+              <span className="font-medium">{user.name}</span>
+              <span className="text-gray-500 ml-2">
+                {ROLE_LABELS[user.role]}
+              </span>
+            </div>
+            <button
+              onClick={logout}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Logout
+            </button>
           </div>
-          {/* TODO: Add dropdown menu with logout */}
-        </div>
+        )}
       </div>
     </header>
   );
