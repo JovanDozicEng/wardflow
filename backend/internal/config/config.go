@@ -22,6 +22,11 @@ type Config struct {
 	// JWT
 	JWTSecret     string
 	JWTExpiration int // in hours
+
+	// Database Connection Pool
+	DBMaxOpenConns    int
+	DBMaxIdleConns    int
+	DBConnMaxLifetime int // in minutes
 }
 
 // Load reads configuration from environment variables with sensible defaults
@@ -40,6 +45,10 @@ func Load() (*Config, error) {
 
 		JWTSecret:     getEnv("JWT_SECRET", ""),
 		JWTExpiration: getEnvInt("JWT_EXPIRATION_HOURS", 24),
+
+		DBMaxOpenConns:    getEnvInt("DB_MAX_OPEN_CONNS", 25),
+		DBMaxIdleConns:    getEnvInt("DB_MAX_IDLE_CONNS", 10),
+		DBConnMaxLifetime: getEnvInt("DB_CONN_MAX_LIFETIME_MINUTES", 5),
 	}
 
 	if err := cfg.validate(); err != nil {

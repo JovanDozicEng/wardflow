@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/wardflow/backend/internal/config"
+	"github.com/wardflow/backend/internal/models"
+	"github.com/wardflow/backend/internal/router"
+	"github.com/wardflow/backend/pkg/auth"
+	"github.com/wardflow/backend/pkg/database"
 	"github.com/wardflow/backend/pkg/logger"
 )
 
@@ -24,16 +28,56 @@ func main() {
 	// Initialize logger
 	logger.Init(cfg.LogLevel)
 
-	// TODO: Initialize database connection
-	// TODO: Initialize repositories
-	// TODO: Initialize services
-	// TODO: Initialize handlers
-	// TODO: Setup router and middleware
+	// Initialize database connection
+	dbCfg := &database.Config{
+		Host:            cfg.DBHost,
+		Port:            cfg.DBPort,
+		User:            cfg.DBUser,
+		Password:        cfg.DBPassword,
+		DBName:          cfg.DBName,
+		SSLMode:         cfg.DBSSLMode,
+		MaxOpenConns:    cfg.DBMaxOpenConns,
+		MaxIdleConns:    cfg.DBMaxIdleConns,
+		ConnMaxLifetime: time.Duration(cfg.DBConnMaxLifetime) * time.Minute,
+		LogLevel:        cfg.LogLevel,
+	}
+
+	db, err := database.Connect(dbCfg)
+	if err != nil {
+		logger.Fatal("failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Verify database connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := db.Ping(ctx); err != nil {
+		logger.Fatal("failed to ping database: %v", err)
+	}
+	logger.Info("database connection verified")
+
+	// Run database migrations
+	if err := runMigrations(db); err != nil {
+		logger.Fatal("failed to run migrations: %v", err)
+	}
+
+	// Initialize JWT service
+	jwtService := auth.NewJWTService(cfg.JWTSecret, cfg.JWTExpiration)
+	logger.Info("JWT service initialized")
+
+	// Initialize auth service
+	authService := auth.NewService(db, jwtService)
+	logger.Info("auth service initialized")
+
+	// Initialize router with all dependencies
+	r := router.New(db, jwtService, authService)
+	logger.Info("router initialized")
 
 	// Create HTTP server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      http.HandlerFunc(healthHandler),
+		Handler:      r,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -54,7 +98,7 @@ func main() {
 
 	logger.Info("shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
@@ -64,13 +108,15 @@ func main() {
 	logger.Info("server stopped")
 }
 
-// Temporary health check handler
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/health" {
-		http.NotFound(w, r)
-		return
+// runMigrations runs database migrations
+func runMigrations(db *database.DB) error {
+	logger.Info("running database migrations...")
+	
+	// Auto-migrate User model
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		return fmt.Errorf("failed to migrate User: %w", err)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`))
+
+	logger.Info("database migrations completed")
+	return nil
 }
