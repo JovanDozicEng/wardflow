@@ -134,7 +134,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	userCtx := auth.MustGetUserContext(r.Context())
 
 	// Extract ID from path (Go 1.22+ pattern)
-	id := r.PathValue("id")
+	id := r.PathValue("encounterId")
 	if id == "" {
 		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "encounter ID is required")
 		return
@@ -174,7 +174,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	userCtx := auth.MustGetUserContext(r.Context())
 
 	// Extract ID from path (Go 1.22+ pattern)
-	id := r.PathValue("id")
+	id := r.PathValue("encounterId")
 	if id == "" {
 		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "encounter ID is required")
 		return

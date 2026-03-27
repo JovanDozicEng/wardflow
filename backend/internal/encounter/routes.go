@@ -18,9 +18,9 @@ func RegisterRoutes(mux *http.ServeMux, h *Handler, jwtService *auth.JWTService)
 	// POST /api/v1/encounters - create encounter
 	mux.Handle("POST /api/v1/encounters", authMiddleware(http.HandlerFunc(h.Create)))
 
-	// GET /api/v1/encounters/{id} - get encounter by ID
-	mux.Handle("GET /api/v1/encounters/{id}", authMiddleware(http.HandlerFunc(h.GetByID)))
+	// GET /api/v1/encounters/{encounterId} - get encounter by ID
+	mux.Handle("GET /api/v1/encounters/{encounterId}", authMiddleware(http.HandlerFunc(h.GetByID)))
 
-	// PATCH /api/v1/encounters/{id} - update encounter
-	mux.Handle("PATCH /api/v1/encounters/{id}", authMiddleware(http.HandlerFunc(h.Update)))
+	// PATCH /api/v1/encounters/{encounterId} - update encounter
+	mux.Handle("PATCH /api/v1/encounters/{encounterId}", authMiddleware(http.HandlerFunc(h.Update)))
 }
