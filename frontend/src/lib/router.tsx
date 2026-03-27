@@ -8,18 +8,17 @@ import { ROUTES } from '../shared/config/routes';
 import HomePage from '../pages/HomePage';
 import LoginPage from '../features/auth/pages/LoginPage';
 import RegisterPage from '../features/auth/pages/RegisterPage';
-import DashboardPage from '../pages/DashboardPage';
+import HuddleDashboard from '../pages/HuddleDashboard';
+import TasksPage from '../pages/TasksPage';
+import EncountersPage from '../pages/EncountersPage';
+import ConsultsPage from '../pages/ConsultsPage';
+import BedManagementPage from '../pages/BedManagementPage';
+import TransportPage from '../pages/TransportPage';
+import DischargePage from '../pages/DischargePage';
+import IncidentsPage from '../pages/IncidentsPage';
+import NotFoundPage from '../pages/NotFoundPage';
+import UnauthorizedPage from '../pages/UnauthorizedPage';
 import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
-
-// Placeholder components
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50">
-    <div className="text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">{title}</h1>
-      <p className="text-gray-600">This page is under construction</p>
-    </div>
-  </div>
-);
 
 export const router = createBrowserRouter([
   {
@@ -34,21 +33,79 @@ export const router = createBrowserRouter([
     path: ROUTES.REGISTER,
     element: <RegisterPage />,
   },
+  // Protected routes
   {
     path: ROUTES.DASHBOARD,
     element: (
       <ProtectedRoute>
-        <DashboardPage />
+        <HuddleDashboard />
       </ProtectedRoute>
     ),
   },
   {
+    path: ROUTES.ENCOUNTER_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_care_team">
+        <EncountersPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.TASK_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_tasks">
+        <TasksPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.CONSULT_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_consults">
+        <ConsultsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.BED_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_beds">
+        <BedManagementPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.TRANSPORT_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_transport">
+        <TransportPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.DISCHARGE_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_care_team">
+        <DischargePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.INCIDENT_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_incidents">
+        <IncidentsPage />
+      </ProtectedRoute>
+    ),
+  },
+  // Error pages
+  {
     path: ROUTES.NOT_FOUND,
-    element: <PlaceholderPage title="404 - Not Found" />,
+    element: <NotFoundPage />,
   },
   {
     path: ROUTES.UNAUTHORIZED,
-    element: <PlaceholderPage title="403 - Unauthorized" />,
+    element: <UnauthorizedPage />,
   },
   {
     path: '*',
