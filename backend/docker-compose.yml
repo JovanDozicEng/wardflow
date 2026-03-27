@@ -54,6 +54,20 @@ services:
       retries: 3
       start_period: 40s
 
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: wardflow-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - wardflow-network
+
 volumes:
   postgres_data:
     driver: local

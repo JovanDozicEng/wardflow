@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 
+	"github.com/wardflow/backend/internal/encounter"
 	"github.com/wardflow/backend/internal/handler"
 	"github.com/wardflow/backend/internal/middleware"
 	"github.com/wardflow/backend/pkg/auth"
@@ -38,8 +39,9 @@ func New(db *database.DB, jwtService *auth.JWTService, authService *auth.Service
 
 	r.setupRoutes(db)
 	
-	// Wrap mux with CORS middleware once
-	r.handler = middleware.CORSMiddleware(r.allowedOrigins)(r.mux)
+	// Wrap mux with CorrelationID middleware, then CORS middleware (outermost layer)
+	handler := middleware.CorrelationID(r.mux)
+	r.handler = middleware.CORSMiddleware(r.allowedOrigins)(handler)
 	
 	return r
 }
@@ -52,6 +54,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (r *Router) setupRoutes(db *database.DB) {
 	// Public routes (no auth required)
 	r.mux.HandleFunc("/health", healthHandler(db))
+	r.mux.HandleFunc("GET /readyz", readyHandler(db))
 	r.mux.HandleFunc("/auth/register", r.authHandler.Register)
 	r.mux.HandleFunc("/auth/login", r.authHandler.Login)
 
@@ -67,6 +70,12 @@ func (r *Router) setupRoutes(db *database.DB) {
 	r.mux.Handle("/auth/change-password", 
 		middleware.AuthMiddleware(r.jwtService)(
 			http.HandlerFunc(r.authHandler.ChangePassword)))
+
+	// Encounter routes
+	encounterRepo := encounter.NewRepository(db)
+	encounterService := encounter.NewService(encounterRepo)
+	encounterHandler := encounter.NewHandler(encounterService, db)
+	encounter.RegisterRoutes(r.mux, encounterHandler, r.jwtService)
 
 	// Future protected endpoints will be added here
 	// Example with role-based access:
@@ -96,5 +105,22 @@ func healthHandler(db *database.DB) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		response := `{"status":"ok","database":"` + dbHealth["status"].(string) + `"}`
 		w.Write([]byte(response))
+	}
+}
+
+func readyHandler(db *database.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Check database health
+		_, err := db.HealthCheck(r.Context())
+		if err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"status":"not ready"}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ready"}`))
 	}
 }
