@@ -116,7 +116,7 @@ func readyHandler(db *database.DB) http.HandlerFunc {
 		_, err := db.HealthCheck(r.Context())
 		if err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"status":"not ready"}`))
+			w.Write([]byte(`{"status":"unhealthy"}`))
 			return
 		}
 
