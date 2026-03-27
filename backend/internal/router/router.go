@@ -55,22 +55,24 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) setupRoutes(db *database.DB) {
-	// Public routes (no auth required)
-	r.mux.HandleFunc("/health", healthHandler(db))
+	// Public routes (no auth required) - health checks at root level
+	r.mux.HandleFunc("GET /health", healthHandler(db))
 	r.mux.HandleFunc("GET /readyz", readyHandler(db))
-	r.mux.HandleFunc("/auth/register", r.authHandler.Register)
-	r.mux.HandleFunc("/auth/login", r.authHandler.Login)
+	
+	// Auth routes - now with /api/v1 prefix for consistency
+	r.mux.HandleFunc("POST /api/v1/auth/register", r.authHandler.Register)
+	r.mux.HandleFunc("POST /api/v1/auth/login", r.authHandler.Login)
 
-	// Protected routes (auth required)
-	r.mux.Handle("/auth/logout", 
+	// Protected auth routes
+	r.mux.Handle("POST /api/v1/auth/logout", 
 		middleware.AuthMiddleware(r.jwtService)(
 			http.HandlerFunc(r.authHandler.Logout)))
 	
-	r.mux.Handle("/auth/me", 
+	r.mux.Handle("GET /api/v1/auth/me", 
 		middleware.AuthMiddleware(r.jwtService)(
 			http.HandlerFunc(r.authHandler.Me)))
 	
-	r.mux.Handle("/auth/change-password", 
+	r.mux.Handle("POST /api/v1/auth/change-password", 
 		middleware.AuthMiddleware(r.jwtService)(
 			http.HandlerFunc(r.authHandler.ChangePassword)))
 

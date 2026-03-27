@@ -14,10 +14,13 @@ export const useExceptions = (filters?: { type?: string; status?: string; encoun
       setLoading(true);
       setError(null);
       const response = await exceptionService.list(filters);
-      setExceptions(response.data);
+      // Backend returns { data: [], total, limit, offset }
+      const exceptionsData = response.data?.data || response.data || [];
+      setExceptions(Array.isArray(exceptionsData) ? exceptionsData : []);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to fetch exceptions');
+      setError(err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to fetch exceptions');
       console.error('Error fetching exceptions:', err);
+      setExceptions([]);
     } finally {
       setLoading(false);
     }

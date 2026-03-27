@@ -14,10 +14,13 @@ export const useIncidents = (filters?: { status?: string; type?: string }) => {
       setLoading(true);
       setError(null);
       const response = await incidentService.list(filters);
-      setIncidents(response.data);
+      // Backend returns { data: [], total, limit, offset }
+      const incidentsData = response.data?.data || response.data || [];
+      setIncidents(Array.isArray(incidentsData) ? incidentsData : []);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to fetch incidents');
+      setError(err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to fetch incidents');
       console.error('Error fetching incidents:', err);
+      setIncidents([]);
     } finally {
       setLoading(false);
     }
