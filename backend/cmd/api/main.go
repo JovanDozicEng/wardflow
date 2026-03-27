@@ -10,10 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/wardflow/backend/internal/careteam"
 	"github.com/wardflow/backend/internal/config"
 	"github.com/wardflow/backend/internal/encounter"
+	"github.com/wardflow/backend/internal/flow"
 	"github.com/wardflow/backend/internal/models"
 	"github.com/wardflow/backend/internal/router"
+	"github.com/wardflow/backend/internal/task"
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
 	"github.com/wardflow/backend/pkg/logger"
@@ -118,6 +121,11 @@ func runMigrations(db *database.DB) error {
 		&models.User{},
 		&models.AuditLog{},
 		&encounter.Encounter{},
+		&careteam.CareTeamAssignment{},
+		&careteam.HandoffNote{},
+		&flow.FlowStateTransition{},
+		&task.Task{},
+		&task.TaskAssignmentEvent{},
 	); err != nil {
 		return fmt.Errorf("failed to migrate models: %w", err)
 	}

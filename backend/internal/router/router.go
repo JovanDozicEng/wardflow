@@ -3,9 +3,13 @@ package router
 import (
 	"net/http"
 
+	"github.com/wardflow/backend/internal/careteam"
+	"github.com/wardflow/backend/internal/dashboard"
 	"github.com/wardflow/backend/internal/encounter"
+	"github.com/wardflow/backend/internal/flow"
 	"github.com/wardflow/backend/internal/handler"
 	"github.com/wardflow/backend/internal/middleware"
+	"github.com/wardflow/backend/internal/task"
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
 )
@@ -76,6 +80,18 @@ func (r *Router) setupRoutes(db *database.DB) {
 	encounterService := encounter.NewService(encounterRepo)
 	encounterHandler := encounter.NewHandler(encounterService, db)
 	encounter.RegisterRoutes(r.mux, encounterHandler, r.jwtService)
+
+	// Care team routes
+	careteam.RegisterRoutes(r.mux, db, r.jwtService)
+
+	// Flow tracking routes
+	flow.RegisterRoutes(r.mux, db, r.jwtService)
+
+	// Task routes
+	task.RegisterRoutes(r.mux, db, r.jwtService)
+
+	// Dashboard routes
+	dashboard.RegisterRoutes(r.mux, db, r.jwtService)
 
 	// Future protected endpoints will be added here
 	// Example with role-based access:
