@@ -11,7 +11,10 @@ import (
 	"time"
 
 	"github.com/wardflow/backend/internal/config"
+	"github.com/wardflow/backend/internal/consult"
 	"github.com/wardflow/backend/internal/encounter"
+	"github.com/wardflow/backend/internal/exception"
+	"github.com/wardflow/backend/internal/incident"
 	"github.com/wardflow/backend/internal/models"
 	"github.com/wardflow/backend/internal/router"
 	"github.com/wardflow/backend/pkg/auth"
@@ -118,6 +121,10 @@ func runMigrations(db *database.DB) error {
 		&models.User{},
 		&models.AuditLog{},
 		&encounter.Encounter{},
+		&consult.ConsultRequest{},
+		&exception.ExceptionEvent{},
+		&incident.Incident{},
+		&incident.IncidentStatusEvent{},
 	); err != nil {
 		return fmt.Errorf("failed to migrate models: %w", err)
 	}
