@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/wardflow/backend/internal/httputil"
 	"github.com/wardflow/backend/internal/models"
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/logger"
@@ -16,14 +17,14 @@ func AuthMiddleware(jwtService *auth.JWTService) func(http.Handler) http.Handler
 			// Extract token from Authorization header
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				respondError(w, http.StatusUnauthorized, "missing authorization header")
+				httputil.RespondError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "missing authorization header")
 				return
 			}
 
 			// Check Bearer prefix
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				respondError(w, http.StatusUnauthorized, "invalid authorization header format")
+				httputil.RespondError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "invalid authorization header format")
 				return
 			}
 
@@ -33,7 +34,7 @@ func AuthMiddleware(jwtService *auth.JWTService) func(http.Handler) http.Handler
 			claims, err := jwtService.ValidateToken(tokenString)
 			if err != nil {
 				logger.Warn("token validation failed: %v", err)
-				respondError(w, http.StatusUnauthorized, "invalid or expired token")
+				httputil.RespondError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "invalid or expired token")
 				return
 			}
 
@@ -50,7 +51,7 @@ func RequireRole(roles ...models.Role) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userCtx, ok := auth.GetUserContext(r.Context())
 			if !ok {
-				respondError(w, http.StatusUnauthorized, "user context not found")
+				httputil.RespondError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "user context not found")
 				return
 			}
 
@@ -70,7 +71,7 @@ func RequireRole(roles ...models.Role) func(http.Handler) http.Handler {
 			}
 
 			if !hasRole {
-				respondError(w, http.StatusForbidden, "insufficient permissions")
+				httputil.RespondError(w, r, http.StatusForbidden, "FORBIDDEN", "insufficient permissions")
 				return
 			}
 
@@ -85,7 +86,7 @@ func RequireUnitAccess(getUnitID func(*http.Request) string) func(http.Handler) 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userCtx, ok := auth.GetUserContext(r.Context())
 			if !ok {
-				respondError(w, http.StatusUnauthorized, "user context not found")
+				httputil.RespondError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "user context not found")
 				return
 			}
 
@@ -111,7 +112,7 @@ func RequireUnitAccess(getUnitID func(*http.Request) string) func(http.Handler) 
 			}
 
 			if !hasAccess {
-				respondError(w, http.StatusForbidden, "no access to this unit")
+				httputil.RespondError(w, r, http.StatusForbidden, "FORBIDDEN", "no access to this unit")
 				return
 			}
 
@@ -158,10 +159,4 @@ func AuditLogger(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func respondError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	w.Write([]byte(`{"error":"` + message + `"}`))
 }

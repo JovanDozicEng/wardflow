@@ -1,0 +1,2052 @@
+openapi: "3.1.0"
+
+info:
+  title: WardFlow API
+  version: "1.0.0"
+  description: |
+    WardFlow inpatient/ED care-coordination API.
+
+    All endpoints (except /healthz and /readyz) require a Bearer JWT token.
+    RBAC is enforced at the API layer — never rely on frontend-only checks.
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://api.wardflow.internal/api/v1
+    description: Production (internal)
+
+security:
+  - bearerAuth: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAGS — one per domain module
+# ─────────────────────────────────────────────────────────────────────────────
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Encounters
+    description: Patient encounter lifecycle
+  - name: CareTeam
+    description: Care team assignments and handoffs (Dev A)
+  - name: Flow
+    description: Patient flow state timeline (Dev A)
+  - name: Tasks
+    description: Clinical task board (Dev A)
+  - name: Dashboard
+    description: Daily huddle dashboard (Dev A)
+  - name: Beds
+    description: Bed management and placement (Dev B)
+  - name: Transport
+    description: Transport requests and dispatch (Dev B)
+  - name: Discharge
+    description: Discharge planning checklists (Dev B)
+  - name: Consults
+    description: Inter-department consult requests (Dev C)
+  - name: Exceptions
+    description: Exception workflows (Dev C)
+  - name: Incidents
+    description: Quality/safety incident logging (Dev C)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── System ────────────────────────────────────────────────────────────────
+
+  /healthz:
+    get:
+      summary: Liveness probe
+      operationId: getHealth
+      security: []
+      tags: [System]
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /readyz:
+    get:
+      summary: Readiness probe
+      operationId: getReadiness
+      security: []
+      tags: [System]
+      responses:
+        "200":
+          description: Service is ready to accept traffic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service is not ready
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      operationId: register
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/login:
+    post:
+      summary: Authenticate and receive a JWT
+      operationId: login
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/logout:
+    post:
+      summary: Logout (invalidates client-side token)
+      operationId: logout
+      tags: [Auth]
+      responses:
+        "200":
+          description: Logged out successfully
+
+  /auth/me:
+    get:
+      summary: Get current authenticated user
+      operationId: getMe
+      tags: [Auth]
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Encounters ────────────────────────────────────────────────────────────
+
+  /encounters:
+    get:
+      summary: List encounters
+      operationId: listEncounters
+      tags: [Encounters]
+      parameters:
+        - $ref: "#/components/parameters/unitIdQuery"
+        - $ref: "#/components/parameters/departmentIdQuery"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/EncounterStatus"
+        - $ref: "#/components/parameters/limitQuery"
+        - $ref: "#/components/parameters/offsetQuery"
+      responses:
+        "200":
+          description: Paginated list of encounters
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Encounter"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      summary: Create a new encounter
+      operationId: createEncounter
+      tags: [Encounters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEncounterRequest"
+      responses:
+        "201":
+          description: Encounter created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encounter"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /encounters/{encounterId}:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    get:
+      summary: Get encounter by ID
+      operationId: getEncounter
+      tags: [Encounters]
+      responses:
+        "200":
+          description: Encounter detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encounter"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      summary: Update encounter status or metadata
+      operationId: updateEncounter
+      tags: [Encounters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEncounterRequest"
+      responses:
+        "200":
+          description: Updated encounter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encounter"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Care Team (Dev A placeholder) ─────────────────────────────────────────
+
+  /encounters/{encounterId}/care-team/assignments:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    get:
+      summary: List care team assignments for encounter
+      operationId: listCareTeamAssignments
+      tags: [CareTeam]
+      parameters:
+        - name: activeOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Care team assignments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CareTeamAssignment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      summary: Assign a user to the encounter care team
+      operationId: createCareTeamAssignment
+      tags: [CareTeam]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCareTeamAssignmentRequest"
+      responses:
+        "201":
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareTeamAssignment"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /care-team/assignments/{assignmentId}/transfer:
+    post:
+      summary: Transfer a care team role (requires handoff note)
+      operationId: transferCareTeamAssignment
+      tags: [CareTeam]
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferAssignmentRequest"
+      responses:
+        "201":
+          description: New assignment created; prior assignment end-dated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareTeamAssignment"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /encounters/{encounterId}/handoffs:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    get:
+      summary: List handoff notes for an encounter
+      operationId: listHandoffs
+      tags: [CareTeam]
+      responses:
+        "200":
+          description: Handoff notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HandoffNote"
+
+  # ── Patient Flow (Dev A placeholder) ─────────────────────────────────────
+
+  /encounters/{encounterId}/flow:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    get:
+      summary: Get flow state timeline for encounter
+      operationId: getFlowTimeline
+      tags: [Flow]
+      responses:
+        "200":
+          description: Flow state transitions in chronological order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FlowStateTransition"
+
+  /encounters/{encounterId}/flow/transitions:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    post:
+      summary: Record a flow state transition
+      operationId: createFlowTransition
+      tags: [Flow]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFlowTransitionRequest"
+      responses:
+        "201":
+          description: Transition recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlowStateTransition"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /encounters/{encounterId}/flow/override:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    post:
+      summary: Override flow state (privileged; requires reason)
+      operationId: overrideFlowState
+      tags: [Flow]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OverrideFlowStateRequest"
+      responses:
+        "201":
+          description: Override recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlowStateTransition"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Tasks (Dev A placeholder) ─────────────────────────────────────────────
+
+  /tasks:
+    get:
+      summary: List tasks
+      operationId: listTasks
+      tags: [Tasks]
+      parameters:
+        - name: scopeType
+          in: query
+          schema:
+            type: string
+            enum: [encounter, patient, unit]
+        - name: scopeId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/TaskStatus"
+        - name: overdue
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/limitQuery"
+        - $ref: "#/components/parameters/offsetQuery"
+      responses:
+        "200":
+          description: Paginated task list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Task"
+    post:
+      summary: Create a task
+      operationId: createTask
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: "#/components/parameters/taskIdPath"
+    patch:
+      summary: Update task (status, owner, details)
+      operationId: updateTask
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tasks/{taskId}/assign:
+    parameters:
+      - $ref: "#/components/parameters/taskIdPath"
+    post:
+      summary: Assign task to a user
+      operationId: assignTask
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Task assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{taskId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/taskIdPath"
+    post:
+      summary: Mark task as complete
+      operationId: completeTask
+      tags: [Tasks]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Task completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{taskId}/history:
+    parameters:
+      - $ref: "#/components/parameters/taskIdPath"
+    get:
+      summary: Get task assignment history
+      operationId: getTaskHistory
+      tags: [Tasks]
+      responses:
+        "200":
+          description: Task assignment events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TaskAssignmentEvent"
+
+  # ── Dashboard (Dev A placeholder) ─────────────────────────────────────────
+
+  /dashboard/huddle:
+    get:
+      summary: Daily huddle dashboard data
+      operationId: getHuddleDashboard
+      tags: [Dashboard]
+      parameters:
+        - $ref: "#/components/parameters/unitIdQuery"
+        - $ref: "#/components/parameters/departmentIdQuery"
+      responses:
+        "200":
+          description: Dashboard data aggregated by unit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HuddleDashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Beds (Dev B placeholder) ──────────────────────────────────────────────
+
+  /beds:
+    get:
+      summary: List beds
+      operationId: listBeds
+      tags: [Beds]
+      parameters:
+        - $ref: "#/components/parameters/unitIdQuery"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/BedStatus"
+      responses:
+        "200":
+          description: Bed list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Bed"
+
+  /beds/{bedId}/status:
+    post:
+      summary: Change bed operational status (creates BedStatusEvent)
+      operationId: changeBedStatus
+      tags: [Beds]
+      parameters:
+        - name: bedId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toStatus]
+              properties:
+                toStatus:
+                  $ref: "#/components/schemas/BedStatus"
+                reason:
+                  type: string
+      responses:
+        "201":
+          description: Bed status event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BedStatusEvent"
+
+  /encounters/{encounterId}/bed-requests:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    post:
+      summary: Create a bed request for an encounter
+      operationId: createBedRequest
+      tags: [Beds]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBedRequestRequest"
+      responses:
+        "201":
+          description: Bed request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BedRequest"
+
+  /bed-requests/{bedRequestId}/assign:
+    post:
+      summary: Assign a bed to a pending bed request
+      operationId: assignBed
+      tags: [Beds]
+      parameters:
+        - name: bedRequestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bedId]
+              properties:
+                bedId:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Bed assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BedRequest"
+
+  # ── Transport (Dev B placeholder) ─────────────────────────────────────────
+
+  /transport/requests:
+    get:
+      summary: List transport requests
+      operationId: listTransportRequests
+      tags: [Transport]
+      parameters:
+        - $ref: "#/components/parameters/unitIdQuery"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/TransportStatus"
+      responses:
+        "200":
+          description: Transport request list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TransportRequest"
+    post:
+      summary: Create a transport request
+      operationId: createTransportRequest
+      tags: [Transport]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransportRequestRequest"
+      responses:
+        "201":
+          description: Transport request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransportRequest"
+
+  /transport/requests/{requestId}/accept:
+    post:
+      summary: Accept a transport request
+      operationId: acceptTransportRequest
+      tags: [Transport]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Transport request accepted
+
+  /transport/requests/{requestId}/complete:
+    post:
+      summary: Mark transport request as complete
+      operationId: completeTransportRequest
+      tags: [Transport]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Transport request completed
+
+  # ── Discharge (Dev B placeholder) ─────────────────────────────────────────
+
+  /encounters/{encounterId}/discharge-checklist/init:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    post:
+      summary: Initialize discharge checklist for an encounter
+      operationId: initDischargeChecklist
+      tags: [Discharge]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dischargeType]
+              properties:
+                dischargeType:
+                  type: string
+      responses:
+        "201":
+          description: Discharge checklist initialized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DischargeChecklist"
+
+  /encounters/{encounterId}/discharge-checklist:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    get:
+      summary: Get discharge checklist for encounter
+      operationId: getDischargeChecklist
+      tags: [Discharge]
+      responses:
+        "200":
+          description: Discharge checklist with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DischargeChecklist"
+
+  /discharge-checklist/items/{itemId}/complete:
+    post:
+      summary: Mark a checklist item as complete
+      operationId: completeChecklistItem
+      tags: [Discharge]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Item marked complete
+
+  /encounters/{encounterId}/discharge/complete:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    post:
+      summary: Finalize discharge (validates checklist; override supported)
+      operationId: completeDischarge
+      tags: [Discharge]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                override:
+                  type: boolean
+                  default: false
+                overrideReason:
+                  type: string
+      responses:
+        "200":
+          description: Discharge completed
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Consults (Dev C placeholder) ──────────────────────────────────────────
+
+  /consults:
+    get:
+      summary: List consult requests
+      operationId: listConsults
+      tags: [Consults]
+      parameters:
+        - $ref: "#/components/parameters/unitIdQuery"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ConsultStatus"
+      responses:
+        "200":
+          description: Consult request list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConsultRequest"
+    post:
+      summary: Create a consult request
+      operationId: createConsult
+      tags: [Consults]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConsultRequest"
+      responses:
+        "201":
+          description: Consult request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsultRequest"
+
+  /consults/{consultId}/accept:
+    post:
+      summary: Accept a consult request
+      operationId: acceptConsult
+      tags: [Consults]
+      parameters:
+        - name: consultId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Consult accepted
+
+  /consults/{consultId}/decline:
+    post:
+      summary: Decline a consult request (reason required)
+      operationId: declineConsult
+      tags: [Consults]
+      parameters:
+        - name: consultId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Consult declined
+
+  /consults/{consultId}/redirect:
+    post:
+      summary: Redirect a consult to another service
+      operationId: redirectConsult
+      tags: [Consults]
+      parameters:
+        - name: consultId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetService, reason]
+              properties:
+                targetService:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Consult redirected
+
+  /consults/{consultId}/complete:
+    post:
+      summary: Mark consult as complete
+      operationId: completeConsult
+      tags: [Consults]
+      parameters:
+        - name: consultId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Consult completed
+
+  # ── Exceptions (Dev C placeholder) ────────────────────────────────────────
+
+  /exceptions:
+    get:
+      summary: List exception events
+      operationId: listExceptions
+      tags: [Exceptions]
+      parameters:
+        - $ref: "#/components/parameters/encounterIdQuery"
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ExceptionStatus"
+      responses:
+        "200":
+          description: Exception event list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ExceptionEvent"
+    post:
+      summary: Create an exception event
+      operationId: createException
+      tags: [Exceptions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExceptionRequest"
+      responses:
+        "201":
+          description: Exception created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExceptionEvent"
+
+  /exceptions/{exceptionId}/finalize:
+    post:
+      summary: Finalize an exception (immutable after this)
+      operationId: finalizeException
+      tags: [Exceptions]
+      parameters:
+        - name: exceptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Exception finalized
+
+  /exceptions/{exceptionId}/correct:
+    post:
+      summary: Apply correction to a finalized exception
+      operationId: correctException
+      tags: [Exceptions]
+      parameters:
+        - name: exceptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CorrectExceptionRequest"
+      responses:
+        "201":
+          description: Correction recorded; original preserved
+
+  # ── Incidents (Dev C placeholder) ─────────────────────────────────────────
+
+  /incidents:
+    get:
+      summary: List incidents
+      operationId: listIncidents
+      tags: [Incidents]
+      parameters:
+        - $ref: "#/components/parameters/unitIdQuery"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/IncidentStatus"
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Incident list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Incident"
+    post:
+      summary: Log a quality/safety incident
+      operationId: createIncident
+      tags: [Incidents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIncidentRequest"
+      responses:
+        "201":
+          description: Incident logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+
+  /incidents/{incidentId}/status:
+    post:
+      summary: Update incident review status (creates status event)
+      operationId: updateIncidentStatus
+      tags: [Incidents]
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: "#/components/schemas/IncidentStatus"
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Incident status updated
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ── Reusable parameters ────────────────────────────────────────────────────
+  parameters:
+    encounterIdPath:
+      name: encounterId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    taskIdPath:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    unitIdQuery:
+      name: unitId
+      in: query
+      schema:
+        type: string
+
+    departmentIdQuery:
+      name: departmentId
+      in: query
+      schema:
+        type: string
+
+    encounterIdQuery:
+      name: encounterId
+      in: query
+      schema:
+        type: string
+        format: uuid
+
+    limitQuery:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+
+    offsetQuery:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+
+  # ── Reusable responses ────────────────────────────────────────────────────
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+                - field: patientId
+                  issue: required field missing
+              correlationId: "abc-123"
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+    Conflict:
+      description: Resource already exists or state conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ── Schemas ────────────────────────────────────────────────────────────────
+  schemas:
+
+    # Error
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+        issue:
+          type: string
+
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldError"
+        correlationId:
+          type: string
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/APIError"
+
+    # Pagination
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    # System
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, ready, unhealthy]
+        database:
+          type: string
+
+    # Auth
+    RegisterRequest:
+      type: object
+      required: [email, password, name, role]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        unitIds:
+          type: array
+          items:
+            type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/UserInfo"
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        unitIds:
+          type: array
+          items:
+            type: string
+        departmentIds:
+          type: array
+          items:
+            type: string
+
+    UserRole:
+      type: string
+      enum:
+        - nurse
+        - provider
+        - charge_nurse
+        - operations
+        - consult
+        - transport
+        - quality_safety
+        - admin
+
+    # Encounter
+    EncounterStatus:
+      type: string
+      enum: [active, discharged, cancelled]
+
+    Encounter:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+        unitId:
+          type: string
+        departmentId:
+          type: string
+        status:
+          $ref: "#/components/schemas/EncounterStatus"
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        updatedBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateEncounterRequest:
+      type: object
+      required: [patientId, unitId, departmentId]
+      properties:
+        patientId:
+          type: string
+        unitId:
+          type: string
+        departmentId:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+
+    UpdateEncounterRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/EncounterStatus"
+        endedAt:
+          type: string
+          format: date-time
+        unitId:
+          type: string
+
+    # Care Team (Dev A — full schema TBD)
+    CareTeamAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        roleType:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateCareTeamAssignmentRequest:
+      type: object
+      required: [userId, roleType]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        roleType:
+          type: string
+
+    TransferAssignmentRequest:
+      type: object
+      required: [toUserId, handoffNote]
+      properties:
+        toUserId:
+          type: string
+          format: uuid
+        handoffNote:
+          type: string
+        structuredFields:
+          type: object
+          additionalProperties: true
+
+    HandoffNote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        fromUserId:
+          type: string
+          format: uuid
+        toUserId:
+          type: string
+          format: uuid
+        roleType:
+          type: string
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # Flow (Dev A — full schema TBD)
+    FlowStateTransition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        fromState:
+          type: string
+          nullable: true
+        toState:
+          type: string
+        at:
+          type: string
+          format: date-time
+        actorType:
+          type: string
+          enum: [user, system]
+        actorUserId:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+
+    CreateFlowTransitionRequest:
+      type: object
+      required: [toState]
+      properties:
+        toState:
+          type: string
+        reason:
+          type: string
+
+    OverrideFlowStateRequest:
+      type: object
+      required: [toState, reason]
+      properties:
+        toState:
+          type: string
+        reason:
+          type: string
+
+    # Tasks (Dev A — full schema TBD)
+    TaskStatus:
+      type: string
+      enum: [open, in_progress, completed, cancelled, escalated]
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        scopeType:
+          type: string
+          enum: [encounter, patient, unit]
+        scopeId:
+          type: string
+        title:
+          type: string
+        details:
+          type: string
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        slaDueAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        completedBy:
+          type: string
+          format: uuid
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateTaskRequest:
+      type: object
+      required: [scopeType, scopeId, title]
+      properties:
+        scopeType:
+          type: string
+          enum: [encounter, patient, unit]
+        scopeId:
+          type: string
+        title:
+          type: string
+        details:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+        slaDueAt:
+          type: string
+          format: date-time
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        details:
+          type: string
+
+    TaskAssignmentEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        fromOwner:
+          type: string
+          format: uuid
+          nullable: true
+        toOwner:
+          type: string
+          format: uuid
+        at:
+          type: string
+          format: date-time
+        byUserId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          nullable: true
+
+    # Dashboard (Dev A — full schema TBD)
+    HuddleDashboard:
+      type: object
+      properties:
+        unitId:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        census:
+          type: integer
+        expectedDischarges:
+          type: integer
+        overdueTaskCount:
+          type: integer
+        pendingConsultCount:
+          type: integer
+        encounters:
+          type: array
+          items:
+            type: object
+            properties:
+              encounterId:
+                type: string
+                format: uuid
+              patientId:
+                type: string
+              flowState:
+                type: string
+              riskFlags:
+                type: array
+                items:
+                  type: string
+
+    # Beds (Dev B — full schema TBD)
+    BedStatus:
+      type: string
+      enum: [available, occupied, blocked, maintenance]
+
+    Bed:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+        room:
+          type: string
+        label:
+          type: string
+        currentStatus:
+          $ref: "#/components/schemas/BedStatus"
+        capabilities:
+          type: array
+          items:
+            type: string
+        currentEncounterId:
+          type: string
+          format: uuid
+          nullable: true
+
+    BedStatusEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bedId:
+          type: string
+          format: uuid
+        fromStatus:
+          $ref: "#/components/schemas/BedStatus"
+        toStatus:
+          $ref: "#/components/schemas/BedStatus"
+        at:
+          type: string
+          format: date-time
+        byUserId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+
+    BedRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        requiredCapabilities:
+          type: array
+          items:
+            type: string
+        priority:
+          type: string
+        status:
+          type: string
+          enum: [pending, assigned, cancelled]
+
+    CreateBedRequestRequest:
+      type: object
+      properties:
+        requiredCapabilities:
+          type: array
+          items:
+            type: string
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+
+    # Transport (Dev B — full schema TBD)
+    TransportStatus:
+      type: string
+      enum: [pending, assigned, in_transit, completed, cancelled]
+
+    TransportRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        origin:
+          type: string
+        destination:
+          type: string
+        priority:
+          type: string
+        status:
+          $ref: "#/components/schemas/TransportStatus"
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTransportRequestRequest:
+      type: object
+      required: [encounterId, origin, destination]
+      properties:
+        encounterId:
+          type: string
+          format: uuid
+        origin:
+          type: string
+        destination:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+
+    # Discharge (Dev B — full schema TBD)
+    DischargeChecklist:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        dischargeType:
+          type: string
+        status:
+          type: string
+          enum: [in_progress, complete]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DischargeChecklistItem"
+
+    DischargeChecklistItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        label:
+          type: string
+        required:
+          type: boolean
+        status:
+          type: string
+          enum: [open, done, waived]
+        completedBy:
+          type: string
+          format: uuid
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # Consults (Dev C — full schema TBD)
+    ConsultStatus:
+      type: string
+      enum: [pending, accepted, declined, completed, redirected, cancelled]
+
+    ConsultRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        targetService:
+          type: string
+        reason:
+          type: string
+        urgency:
+          type: string
+          enum: [routine, urgent, emergent]
+        status:
+          $ref: "#/components/schemas/ConsultStatus"
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateConsultRequest:
+      type: object
+      required: [encounterId, targetService, reason, urgency]
+      properties:
+        encounterId:
+          type: string
+          format: uuid
+        targetService:
+          type: string
+        reason:
+          type: string
+        urgency:
+          type: string
+          enum: [routine, urgent, emergent]
+
+    # Exceptions (Dev C — full schema TBD)
+    ExceptionStatus:
+      type: string
+      enum: [draft, finalized, corrected]
+
+    ExceptionEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        status:
+          $ref: "#/components/schemas/ExceptionStatus"
+        dataJson:
+          type: object
+          additionalProperties: true
+        initiatedBy:
+          type: string
+          format: uuid
+        initiatedAt:
+          type: string
+          format: date-time
+        finalizedBy:
+          type: string
+          format: uuid
+          nullable: true
+        finalizedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateExceptionRequest:
+      type: object
+      required: [encounterId, type, data]
+      properties:
+        encounterId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+
+    CorrectExceptionRequest:
+      type: object
+      required: [reason, data]
+      properties:
+        reason:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+
+    # Incidents (Dev C — full schema TBD)
+    IncidentStatus:
+      type: string
+      enum: [submitted, under_review, closed]
+
+    Incident:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+        severity:
+          type: string
+          nullable: true
+        eventTime:
+          type: string
+          format: date-time
+        reportedBy:
+          type: string
+          format: uuid
+        reportedAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/IncidentStatus"
+
+    CreateIncidentRequest:
+      type: object
+      required: [type, eventTime]
+      properties:
+        encounterId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        severity:
+          type: string
+        eventTime:
+          type: string
+          format: date-time
+        harmIndicators:
+          type: object
+          additionalProperties: true

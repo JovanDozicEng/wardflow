@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/wardflow/backend/internal/config"
+	"github.com/wardflow/backend/internal/encounter"
 	"github.com/wardflow/backend/internal/models"
 	"github.com/wardflow/backend/internal/router"
 	"github.com/wardflow/backend/pkg/auth"
@@ -112,9 +113,13 @@ func main() {
 func runMigrations(db *database.DB) error {
 	logger.Info("running database migrations...")
 	
-	// Auto-migrate User model
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		return fmt.Errorf("failed to migrate User: %w", err)
+	// Auto-migrate all models
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.AuditLog{},
+		&encounter.Encounter{},
+	); err != nil {
+		return fmt.Errorf("failed to migrate models: %w", err)
 	}
 
 	logger.Info("database migrations completed")
