@@ -11,6 +11,11 @@ import RegisterPage from '../features/auth/pages/RegisterPage';
 import DashboardPage from '../pages/DashboardPage';
 import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
 
+// Feature pages
+import { ConsultsPage } from '../features/consults';
+import { ExceptionsPage } from '../features/exceptions';
+import { IncidentReportPage, IncidentReviewPage } from '../features/incidents';
+
 // Placeholder components
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -39,6 +44,41 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <DashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  // Consults
+  {
+    path: ROUTES.CONSULT_LIST,
+    element: (
+      <ProtectedRoute>
+        <ConsultsPage />
+      </ProtectedRoute>
+    ),
+  },
+  // Exceptions
+  {
+    path: ROUTES.EXCEPTION_LIST,
+    element: (
+      <ProtectedRoute>
+        <ExceptionsPage />
+      </ProtectedRoute>
+    ),
+  },
+  // Incidents
+  {
+    path: ROUTES.INCIDENT_REPORT,
+    element: (
+      <ProtectedRoute>
+        <IncidentReportPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.INCIDENT_REVIEW,
+    element: (
+      <ProtectedRoute>
+        <IncidentReviewPage />
       </ProtectedRoute>
     ),
   },
