@@ -22,6 +22,8 @@ security:
 # TAGS — one per domain module
 # ─────────────────────────────────────────────────────────────────────────────
 tags:
+  - name: System
+    description: Health checks and operational endpoints
   - name: Auth
     description: Authentication and session management
   - name: Encounters
