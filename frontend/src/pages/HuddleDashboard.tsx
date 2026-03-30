@@ -14,6 +14,7 @@ import { RiskIndicatorsCard } from '../features/dashboard/components/RiskIndicat
 import { DrillDownList } from '../features/dashboard/components/DrillDownList';
 import { Button } from '../shared/components/ui/Button';
 import { Card } from '../shared/components/ui/Card';
+import { Layout } from '../shared/components/layout/Layout';
 
 export const HuddleDashboard = () => {
   const [metrics, setMetrics] = useState<HuddleMetrics | null>(null);
@@ -58,7 +59,7 @@ export const HuddleDashboard = () => {
 
   if (error) {
     return (
-      <div className="p-6">
+      <Layout>
         <Card padding="md">
           <div className="text-center py-12">
             <p className="text-red-600 font-medium mb-2">Error Loading Dashboard</p>
@@ -66,12 +67,13 @@ export const HuddleDashboard = () => {
             <Button onClick={handleRefresh}>Try Again</Button>
           </div>
         </Card>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <Layout>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -195,7 +197,8 @@ export const HuddleDashboard = () => {
           </div>
         </>
       ) : null}
-    </div>
+      </div>
+    </Layout>
   );
 };
 
