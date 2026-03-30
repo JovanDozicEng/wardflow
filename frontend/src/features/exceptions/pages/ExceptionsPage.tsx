@@ -10,6 +10,7 @@ import { CorrectionModal } from '../components/CorrectionModal';
 import { Button } from '@/shared/components/ui/Button';
 import { useExceptionActions } from '../hooks/useExceptionActions';
 import type { ExceptionEvent } from '../types/exception.types';
+import { Layout } from '@/shared/components/layout/Layout';
 
 export const ExceptionsPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -93,6 +94,7 @@ export const ExceptionsPage = () => {
   };
 
   return (
+    <Layout>
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -163,5 +165,6 @@ export const ExceptionsPage = () => {
         loading={loading}
       />
     </div>
+    </Layout>
   );
 };

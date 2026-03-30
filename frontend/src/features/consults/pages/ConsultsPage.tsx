@@ -10,6 +10,7 @@ import { RedirectModal } from '../components/RedirectModal';
 import { Button } from '@/shared/components/ui/Button';
 import { useConsultActions } from '../hooks/useConsultActions';
 import { usePermissions } from '@/features/auth/hooks/usePermissions';
+import { Layout } from '@/shared/components/layout/Layout';
 
 export const ConsultsPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -87,6 +88,7 @@ export const ConsultsPage = () => {
   };
 
   return (
+    <Layout>
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -140,5 +142,6 @@ export const ConsultsPage = () => {
         loading={loading}
       />
     </div>
+    </Layout>
   );
 };

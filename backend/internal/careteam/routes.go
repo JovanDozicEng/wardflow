@@ -15,8 +15,8 @@ func RegisterRoutes(mux *http.ServeMux, db *database.DB, jwtService *auth.JWTSer
 	// Apply auth middleware to all routes
 	authMiddleware := middleware.AuthMiddleware(jwtService)
 
-	// GET /api/v1/encounters/{encounterId}/care-team - Get care team assignments
-	mux.Handle("GET /api/v1/encounters/{encounterId}/care-team",
+	// GET /api/v1/encounters/{encounterId}/care-team/assignments - Get care team assignments
+	mux.Handle("GET /api/v1/encounters/{encounterId}/care-team/assignments",
 		authMiddleware(http.HandlerFunc(handler.GetCareTeam)))
 
 	// POST /api/v1/encounters/{encounterId}/care-team/assignments - Assign a role

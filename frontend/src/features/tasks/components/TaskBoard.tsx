@@ -22,6 +22,7 @@ interface TaskBoardProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
   onCreateTask: () => void;
+  onStatusChange?: (task: Task, newStatus: TaskStatus) => Promise<void>;
   onFilterChange?: (filters: TaskFilterParams) => void;
   isLoading?: boolean;
 }
@@ -30,6 +31,7 @@ export const TaskBoard = ({
   tasks,
   onTaskClick,
   onCreateTask,
+  onStatusChange,
   onFilterChange,
   isLoading,
 }: TaskBoardProps) => {
@@ -179,6 +181,7 @@ export const TaskBoard = ({
             tasks={tasksByStatus[status]}
             color={color}
             onTaskClick={onTaskClick}
+            onStatusChange={onStatusChange}
           />
         ))}
       </div>
@@ -191,9 +194,10 @@ interface TaskColumnProps {
   tasks: Task[];
   color: string;
   onTaskClick: (task: Task) => void;
+  onStatusChange?: (task: Task, newStatus: TaskStatus) => Promise<void>;
 }
 
-const TaskColumn = ({ status, tasks, color, onTaskClick }: TaskColumnProps) => {
+const TaskColumn = ({ status, tasks, color, onTaskClick, onStatusChange }: TaskColumnProps) => {
   const colorClasses: Record<string, string> = {
     blue: 'bg-blue-50 border-blue-200',
     yellow: 'bg-yellow-50 border-yellow-200',
@@ -218,7 +222,7 @@ const TaskColumn = ({ status, tasks, color, onTaskClick }: TaskColumnProps) => {
         {tasks.length === 0 ? (
           <div className="text-center py-8 text-gray-400 text-sm">No tasks</div>
         ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} onClick={onTaskClick} />)
+          tasks.map((task) => <TaskCard key={task.id} task={task} onClick={onTaskClick} onStatusChange={onStatusChange} />)
         )}
       </div>
     </div>
@@ -228,9 +232,11 @@ const TaskColumn = ({ status, tasks, color, onTaskClick }: TaskColumnProps) => {
 interface TaskCardProps {
   task: Task;
   onClick: (task: Task) => void;
+  onStatusChange?: (task: Task, newStatus: TaskStatus) => Promise<void>;
 }
 
-const TaskCard = ({ task, onClick }: TaskCardProps) => {
+const TaskCard = ({ task, onClick, onStatusChange }: TaskCardProps) => {
+  const [updating, setUpdating] = useState(false);
   const overdue = isTaskOverdue(task);
   const priorityColor = TaskPriorityColors[task.priority];
 
@@ -239,6 +245,20 @@ const TaskCard = ({ task, onClick }: TaskCardProps) => {
     blue: 'bg-blue-100 text-blue-800',
     orange: 'bg-orange-100 text-orange-800',
     red: 'bg-red-100 text-red-800',
+  };
+
+  const allStatuses: TaskStatus[] = ['open', 'in_progress', 'escalated', 'completed', 'cancelled'];
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    const newStatus = e.target.value as TaskStatus;
+    if (!onStatusChange || newStatus === task.status) return;
+    setUpdating(true);
+    try {
+      await onStatusChange(task, newStatus);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -270,6 +290,24 @@ const TaskCard = ({ task, onClick }: TaskCardProps) => {
         {/* Details */}
         {task.details && (
           <p className="text-xs text-gray-600 line-clamp-2">{task.details}</p>
+        )}
+
+        {/* Status Selector */}
+        {onStatusChange && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <select
+              value={task.status}
+              onChange={handleStatusChange}
+              disabled={updating}
+              className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
+            >
+              {allStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {updating && s === task.status ? 'Saving…' : TaskStatusLabels[s]}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
         {/* Footer */}

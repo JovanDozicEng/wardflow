@@ -105,6 +105,12 @@ incidentRepo := incident.NewRepository(db)
 incidentService := incident.NewService(incidentRepo)
 incidentHandler := incident.NewHandler(incidentService, db)
 incident.RegisterRoutes(r.mux, incidentHandler, r.jwtService)
+
+// Users — searchable list for care team assignment
+usersHandler := handler.NewUsersHandler(db)
+r.mux.Handle("GET /api/v1/users",
+	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(usersHandler.ListUsers)),
+)
 }
 
 func healthHandler(db *database.DB) http.HandlerFunc {

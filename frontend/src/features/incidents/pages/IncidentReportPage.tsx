@@ -5,6 +5,7 @@
 import { IncidentForm } from '../components/IncidentForm';
 import { useIncidentActions } from '../hooks/useIncidentActions';
 import type { CreateIncidentRequest } from '../types/incident.types';
+import { Layout } from '@/shared/components/layout/Layout';
 
 export const IncidentReportPage = () => {
   const { createIncident, loading } = useIncidentActions();
@@ -22,6 +23,7 @@ export const IncidentReportPage = () => {
   };
 
   return (
+    <Layout>
     <div className="max-w-3xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-6">
@@ -43,5 +45,6 @@ export const IncidentReportPage = () => {
       {/* Form */}
       <IncidentForm onSubmit={handleSubmit} loading={loading} />
     </div>
+    </Layout>
   );
 };

@@ -11,6 +11,7 @@ import RegisterPage from '../features/auth/pages/RegisterPage';
 import HuddleDashboard from '../pages/HuddleDashboard';
 import TasksPage from '../pages/TasksPage';
 import EncountersPage from '../pages/EncountersPage';
+import EncounterDetailPage from '../pages/EncounterDetailPage';
 import BedManagementPage from '../pages/BedManagementPage';
 import TransportPage from '../pages/TransportPage';
 import DischargePage from '../pages/DischargePage';
@@ -23,6 +24,9 @@ import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
 import { ConsultsPage } from '../features/consults';
 import { ExceptionsPage } from '../features/exceptions';
 import { IncidentReportPage, IncidentReviewPage } from '../features/incidents';
+
+// Clinical Care feature pages
+import { CareTeamPage } from '../features/care-team/pages/CareTeamPage';
 
 export const router = createBrowserRouter([
   {
@@ -54,6 +58,22 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredPermission="view_care_team">
         <EncountersPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.ENCOUNTER_DETAIL,
+    element: (
+      <ProtectedRoute requiredPermission="view_care_team">
+        <EncounterDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.ENCOUNTER_CARE_TEAM,
+    element: (
+      <ProtectedRoute requiredPermission="view_care_team">
+        <CareTeamPage />
       </ProtectedRoute>
     ),
   },

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/wardflow/backend/internal/audit"
 	"github.com/wardflow/backend/internal/httputil"
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
@@ -12,12 +13,14 @@ import (
 // Handler handles HTTP requests for care team management
 type Handler struct {
 	service *Service
+	db      *database.DB
 }
 
 // NewHandler creates a new care team handler
 func NewHandler(db *database.DB) *Handler {
 	return &Handler{
 		service: NewService(db),
+		db:      db,
 	}
 }
 
@@ -91,6 +94,14 @@ func (h *Handler) AssignRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "care_team_assignment",
+		EntityID:   assignment.ID,
+		Action:     "CREATE",
+		ByUserID:   userCtx.UserID,
+		After:      assignment,
+	})
+
 	httputil.RespondJSON(w, http.StatusCreated, assignment)
 }
 
@@ -123,6 +134,16 @@ func (h *Handler) TransferRole(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, r, http.StatusBadRequest, "TRANSFER_FAILED", err.Error())
 		return
 	}
+
+	reason := req.HandoffNote
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "care_team_assignment",
+		EntityID:   assignmentID,
+		Action:     "TRANSFER",
+		ByUserID:   userCtx.UserID,
+		Reason:     &reason,
+		After:      newAssignment,
+	})
 
 	httputil.RespondJSON(w, http.StatusCreated, newAssignment)
 }

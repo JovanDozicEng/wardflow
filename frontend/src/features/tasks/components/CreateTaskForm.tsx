@@ -72,13 +72,19 @@ export const CreateTaskForm = ({
 
     if (!validate()) return;
 
+    const normalizeDatetime = (val?: string) => {
+      if (!val) return undefined;
+      // datetime-local gives "YYYY-MM-DDTHH:MM" — append seconds+Z for RFC3339
+      return /T\d{2}:\d{2}$/.test(val) ? `${val}:00Z` : val;
+    };
+
     setIsSubmitting(true);
     try {
       await onSubmit({
         ...formData,
         title: formData.title.trim(),
         details: formData.details?.trim() || undefined,
-        slaDueAt: formData.slaDueAt || undefined,
+        slaDueAt: normalizeDatetime(formData.slaDueAt),
       });
       handleClose();
     } catch (error: any) {

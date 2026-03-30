@@ -12,7 +12,7 @@ import type {
 
 export const consultService = {
   list: (params?: { unitId?: string; status?: string; targetService?: string }) =>
-    api.get<ConsultRequest[]>('/consults', { params }),
+    api.get<{ data: ConsultRequest[]; total: number; limit: number; offset: number }>('/consults', { params }),
   
   create: (data: CreateConsultRequest) =>
     api.post<ConsultRequest>('/consults', data),
