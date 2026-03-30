@@ -8,6 +8,7 @@ import { useLocation, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
+  UserCheck,
   ListTodo,
   MessageSquare,
   Bed,
@@ -62,6 +63,12 @@ export const Sidebar = () => {
     {
       title: 'Clinical Care',
       items: [
+        {
+          label: 'Patients',
+          path: ROUTES.PATIENT_LIST,
+          icon: UserCheck,
+          permission: Permission.VIEW_CARE_TEAM,
+        },
         {
           label: 'Encounters',
           path: ROUTES.ENCOUNTER_LIST,

@@ -10,6 +10,7 @@ import LoginPage from '../features/auth/pages/LoginPage';
 import RegisterPage from '../features/auth/pages/RegisterPage';
 import HuddleDashboard from '../pages/HuddleDashboard';
 import TasksPage from '../pages/TasksPage';
+import PatientsPage from '../pages/PatientsPage';
 import EncountersPage from '../pages/EncountersPage';
 import EncounterDetailPage from '../pages/EncounterDetailPage';
 import BedManagementPage from '../pages/BedManagementPage';
@@ -53,6 +54,14 @@ export const router = createBrowserRouter([
   },
 
   // Clinical Care (Developer A)
+  {
+    path: ROUTES.PATIENT_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_care_team">
+        <PatientsPage />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: ROUTES.ENCOUNTER_LIST,
     element: (

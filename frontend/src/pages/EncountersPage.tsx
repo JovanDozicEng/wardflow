@@ -2,7 +2,7 @@
  * EncountersPage - Active patient encounters list
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout } from '../shared/components/layout/Layout';
 import { PageHeader } from '../shared/components/layout/PageHeader';
@@ -12,6 +12,8 @@ import { Modal } from '../shared/components/ui/Modal';
 import { Input } from '../shared/components/ui/Input';
 import { ROUTES, buildRoute } from '../shared/config/routes';
 import api from '../shared/utils/api';
+import { searchPatients } from '../features/patients/services/patientService';
+import type { Patient } from '../features/patients/types';
 
 interface Encounter {
   id: string;
@@ -45,27 +47,85 @@ const CreateEncounterModal = ({
   onClose: () => void;
   onCreated: () => void;
 }) => {
-  const [patientId, setPatientId] = useState('');
+  const [patientQuery, setPatientQuery] = useState('');
+  const [patientResults, setPatientResults] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [unitId, setUnitId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Debounce patient search
+  useEffect(() => {
+    if (!patientQuery.trim() || patientQuery.length < 2) {
+      setPatientResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setLoadingPatients(true);
+      try {
+        const results = await searchPatients(patientQuery);
+        setPatientResults(results);
+        setShowDropdown(results.length > 0);
+      } catch (err) {
+        setPatientResults([]);
+        setShowDropdown(false);
+      } finally {
+        setLoadingPatients(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [patientQuery]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handlePatientSelect = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setPatientQuery('');
+    setShowDropdown(false);
+    setPatientResults([]);
+  };
+
+  const handleClearPatient = () => {
+    setSelectedPatient(null);
+    setPatientQuery('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!patientId.trim() || !unitId.trim() || !departmentId.trim()) {
-      setError('All fields are required');
+    if (!selectedPatient) {
+      setError('Please search and select a patient');
+      return;
+    }
+    if (!unitId.trim() || !departmentId.trim()) {
+      setError('Unit ID and Department ID are required');
       return;
     }
     setSaving(true);
     try {
       await api.post('/encounters', {
-        patientId: patientId.trim(),
+        patientId: selectedPatient.id,
         unitId: unitId.trim(),
         departmentId: departmentId.trim(),
       });
-      setPatientId('');
+      setSelectedPatient(null);
+      setPatientQuery('');
       setUnitId('');
       setDepartmentId('');
       onCreated();
@@ -85,13 +145,64 @@ const CreateEncounterModal = ({
             {error}
           </div>
         )}
-        <Input
-          label="Patient ID"
-          value={patientId}
-          onChange={(e) => setPatientId(e.target.value)}
-          placeholder="e.g. patient-001"
-          required
-        />
+
+        {/* Patient Search/Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Patient <span className="text-red-500">*</span>
+          </label>
+          {selectedPatient ? (
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900">
+                  {selectedPatient.firstName} {selectedPatient.lastName}
+                </p>
+                <p className="text-xs text-blue-600">MRN: {selectedPatient.mrn}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearPatient}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Change
+              </button>
+            </div>
+          ) : (
+            <div className="relative" ref={dropdownRef}>
+              <input
+                type="text"
+                value={patientQuery}
+                onChange={(e) => setPatientQuery(e.target.value)}
+                placeholder="Search by name or MRN..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {loadingPatients && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                </div>
+              )}
+              {showDropdown && patientResults.length > 0 && (
+                <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                  {patientResults.map((patient) => (
+                    <li key={patient.id}>
+                      <button
+                        type="button"
+                        onClick={() => handlePatientSelect(patient)}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <p className="text-sm font-medium text-gray-900">
+                          {patient.firstName} {patient.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">MRN: {patient.mrn}</p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
         <Input
           label="Unit ID"
           value={unitId}

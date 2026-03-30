@@ -12,6 +12,7 @@ import (
 "github.com/wardflow/backend/internal/handler"
 "github.com/wardflow/backend/internal/incident"
 "github.com/wardflow/backend/internal/middleware"
+"github.com/wardflow/backend/internal/patient"
 "github.com/wardflow/backend/internal/task"
 "github.com/wardflow/backend/pkg/auth"
 "github.com/wardflow/backend/pkg/database"
@@ -83,6 +84,12 @@ encounterRepo := encounter.NewRepository(db)
 encounterService := encounter.NewService(encounterRepo)
 encounterHandler := encounter.NewHandler(encounterService, db)
 encounter.RegisterRoutes(r.mux, encounterHandler, r.jwtService)
+
+// Patient routes
+patientRepo := patient.NewRepository(db)
+patientService := patient.NewService(patientRepo)
+patientHandler := patient.NewHandler(patientService, db)
+patient.RegisterRoutes(r.mux, patientHandler, r.jwtService)
 
 // Clinical Core routes (Developer A)
 careteam.RegisterRoutes(r.mux, db, r.jwtService)

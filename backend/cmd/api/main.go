@@ -18,6 +18,7 @@ import (
 "github.com/wardflow/backend/internal/flow"
 "github.com/wardflow/backend/internal/incident"
 "github.com/wardflow/backend/internal/models"
+"github.com/wardflow/backend/internal/patient"
 "github.com/wardflow/backend/internal/router"
 "github.com/wardflow/backend/internal/task"
 "github.com/wardflow/backend/pkg/auth"
@@ -124,6 +125,7 @@ if err := db.AutoMigrate(
 &models.User{},
 &models.AuditLog{},
 &encounter.Encounter{},
+&patient.Patient{},
 // Clinical Core (Developer A)
 &careteam.CareTeamAssignment{},
 &careteam.HandoffNote{},

@@ -12,6 +12,9 @@ export const ROUTES = {
   // Protected routes
   DASHBOARD: '/dashboard',
   
+  // Patient routes
+  PATIENT_LIST: '/patients',
+  
   // Encounter routes
   ENCOUNTER_LIST: '/encounters',
   ENCOUNTER_DETAIL: '/encounters/:id',
