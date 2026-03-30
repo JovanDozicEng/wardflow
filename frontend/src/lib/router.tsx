@@ -12,10 +12,13 @@ import HuddleDashboard from '../pages/HuddleDashboard';
 import TasksPage from '../pages/TasksPage';
 import EncountersPage from '../pages/EncountersPage';
 import ConsultsPage from '../pages/ConsultsPage';
+import ExceptionsPage from '../pages/ExceptionsPage';
+import IncidentsPage from '../pages/IncidentsPage';
+import IncidentReportPage from '../pages/IncidentReportPage';
+import IncidentReviewPage from '../pages/IncidentReviewPage';
 import BedManagementPage from '../pages/BedManagementPage';
 import TransportPage from '../pages/TransportPage';
 import DischargePage from '../pages/DischargePage';
-import IncidentsPage from '../pages/IncidentsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
@@ -67,6 +70,38 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: ROUTES.EXCEPTION_LIST,
+    element: (
+      <ProtectedRoute>
+        <ExceptionsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.INCIDENT_LIST,
+    element: (
+      <ProtectedRoute requiredPermission="view_incidents">
+        <IncidentsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.INCIDENT_REPORT,
+    element: (
+      <ProtectedRoute requiredPermission="create_incident">
+        <IncidentReportPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.INCIDENT_REVIEW,
+    element: (
+      <ProtectedRoute requiredPermission="review_incident">
+        <IncidentReviewPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: ROUTES.BED_LIST,
     element: (
       <ProtectedRoute requiredPermission="view_beds">
@@ -87,14 +122,6 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredPermission="view_care_team">
         <DischargePage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: ROUTES.INCIDENT_LIST,
-    element: (
-      <ProtectedRoute requiredPermission="view_incidents">
-        <IncidentsPage />
       </ProtectedRoute>
     ),
   },

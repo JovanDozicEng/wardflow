@@ -20,7 +20,9 @@ export const TasksPage = () => {
     try {
       setIsLoading(true);
       const response = await taskService.listTasks(filters);
-      setTasks(response.data);
+      // Backend returns paginated response: { data: Task[], total, limit, offset }
+      const taskData = response.data ?? response;
+      setTasks(Array.isArray(taskData) ? taskData : []);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     } finally {

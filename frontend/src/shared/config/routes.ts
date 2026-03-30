@@ -26,7 +26,17 @@ export const ROUTES = {
   // Consult routes
   CONSULT_LIST: '/consults',
   CONSULT_DETAIL: '/consults/:id',
-  
+
+  // Exception routes
+  EXCEPTION_LIST: '/exceptions',
+  EXCEPTION_DETAIL: '/exceptions/:id',
+
+  // Incident routes
+  INCIDENT_LIST: '/incidents',
+  INCIDENT_REPORT: '/incidents/report',
+  INCIDENT_REVIEW: '/incidents/review',
+  INCIDENT_DETAIL: '/incidents/:id',
+
   // Bed management routes
   BED_LIST: '/beds',
   BED_DETAIL: '/beds/:id',
@@ -38,10 +48,6 @@ export const ROUTES = {
   // Discharge routes
   DISCHARGE_LIST: '/discharge',
   DISCHARGE_DETAIL: '/discharge/:id',
-  
-  // Incident routes
-  INCIDENT_LIST: '/incidents',
-  INCIDENT_DETAIL: '/incidents/:id',
   
   // Error routes
   NOT_FOUND: '/404',
