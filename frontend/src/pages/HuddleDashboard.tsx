@@ -15,6 +15,8 @@ import { DrillDownList } from '../features/dashboard/components/DrillDownList';
 import { Button } from '../shared/components/ui/Button';
 import { Card } from '../shared/components/ui/Card';
 import { Layout } from '../shared/components/layout/Layout';
+import { UnitAutocomplete } from '../shared/components/ui/UnitAutocomplete';
+import { DepartmentAutocomplete } from '../shared/components/ui/DepartmentAutocomplete';
 
 export const HuddleDashboard = () => {
   const [metrics, setMetrics] = useState<HuddleMetrics | null>(null);
@@ -120,30 +122,18 @@ export const HuddleDashboard = () => {
       {showFilters && (
         <Card padding="md">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Unit ID</label>
-              <input
-                type="text"
-                value={filters.unitId || ''}
-                onChange={(e) => setFilters({ ...filters, unitId: e.target.value || undefined })}
-                placeholder="Filter by unit"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Department ID
-              </label>
-              <input
-                type="text"
-                value={filters.departmentId || ''}
-                onChange={(e) =>
-                  setFilters({ ...filters, departmentId: e.target.value || undefined })
-                }
-                placeholder="Filter by department"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
+            <UnitAutocomplete
+              label="Unit"
+              placeholder="Filter by unit"
+              value={filters.unitId || ''}
+              onChange={(id) => setFilters({ ...filters, unitId: id || undefined })}
+            />
+            <DepartmentAutocomplete
+              label="Department"
+              placeholder="Filter by department"
+              value={filters.departmentId || ''}
+              onChange={(id) => setFilters({ ...filters, departmentId: id || undefined })}
+            />
           </div>
         </Card>
       )}

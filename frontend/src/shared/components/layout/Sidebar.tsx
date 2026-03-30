@@ -17,6 +17,8 @@ import {
   ShieldAlert,
   FileWarning,
   Search,
+  Building2,
+  LayoutGrid,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { usePermissions } from '../../../features/auth/hooks/usePermissions';
@@ -46,6 +48,7 @@ export const Sidebar = () => {
 
   const canManageConsults = hasAnyRole(['provider', 'consult', 'admin']);
   const canReviewIncidents = hasAnyRole(['quality_safety', 'admin']);
+  const canAdmin = hasAnyRole(['admin']);
 
   const navigationSections: NavSection[] = [
     // Core — no section label
@@ -148,6 +151,27 @@ export const Sidebar = () => {
         },
       ],
     },
+
+    // Administration (admin only)
+    ...(canAdmin
+      ? [
+          {
+            title: 'Administration',
+            items: [
+              {
+                label: 'Departments',
+                path: ROUTES.DEPARTMENT_LIST,
+                icon: Building2,
+              },
+              {
+                label: 'Units',
+                path: ROUTES.UNIT_LIST,
+                icon: LayoutGrid,
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   const allNavigationItems = navigationSections.flatMap((s) => s.items);

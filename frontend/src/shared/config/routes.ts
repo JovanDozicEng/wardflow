@@ -52,6 +52,10 @@ export const ROUTES = {
   DISCHARGE_LIST: '/discharge',
   DISCHARGE_DETAIL: '/discharge/:id',
   
+  // Admin routes
+  DEPARTMENT_LIST: '/admin/departments',
+  UNIT_LIST: '/admin/units',
+  
   // Error routes
   NOT_FOUND: '/404',
   UNAUTHORIZED: '/unauthorized',

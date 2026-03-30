@@ -9,11 +9,13 @@ import { PageHeader } from '../shared/components/layout/PageHeader';
 import { Spinner } from '../shared/components/ui/Spinner';
 import { Button } from '../shared/components/ui/Button';
 import { Modal } from '../shared/components/ui/Modal';
-import { Input } from '../shared/components/ui/Input';
+import { UnitAutocomplete } from '../shared/components/ui/UnitAutocomplete';
+import { DepartmentAutocomplete } from '../shared/components/ui/DepartmentAutocomplete';
 import { ROUTES, buildRoute } from '../shared/config/routes';
 import api from '../shared/utils/api';
 import { searchPatients } from '../features/patients/services/patientService';
 import type { Patient } from '../features/patients/types';
+import type { Unit, Department } from '../features/units/types';
 
 interface Encounter {
   id: string;
@@ -52,8 +54,8 @@ const CreateEncounterModal = ({
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [unitId, setUnitId] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -113,21 +115,25 @@ const CreateEncounterModal = ({
       setError('Please search and select a patient');
       return;
     }
-    if (!unitId.trim() || !departmentId.trim()) {
-      setError('Unit ID and Department ID are required');
+    if (!selectedUnit) {
+      setError('Please select a unit');
+      return;
+    }
+    if (!selectedDepartment) {
+      setError('Please select a department');
       return;
     }
     setSaving(true);
     try {
       await api.post('/encounters', {
         patientId: selectedPatient.id,
-        unitId: unitId.trim(),
-        departmentId: departmentId.trim(),
+        unitId: selectedUnit.id,
+        departmentId: selectedDepartment.id,
       });
       setSelectedPatient(null);
       setPatientQuery('');
-      setUnitId('');
-      setDepartmentId('');
+      setSelectedUnit(null);
+      setSelectedDepartment(null);
       onCreated();
       onClose();
     } catch (err: any) {
@@ -203,19 +209,25 @@ const CreateEncounterModal = ({
           )}
         </div>
 
-        <Input
-          label="Unit ID"
-          value={unitId}
-          onChange={(e) => setUnitId(e.target.value)}
-          placeholder="e.g. unit-icu"
+        <UnitAutocomplete
+          label="Unit"
+          value={selectedUnit?.id ?? ''}
+          onChange={(id) => {
+            // Find the unit object when ID changes
+            // For now, we just store the ID and will fetch on mount if needed
+            setSelectedUnit(id ? ({ id } as Unit) : null);
+          }}
           required
+          error={!selectedUnit && error ? 'Please select a unit' : undefined}
         />
-        <Input
-          label="Department ID"
-          value={departmentId}
-          onChange={(e) => setDepartmentId(e.target.value)}
-          placeholder="e.g. dept-emergency"
+        <DepartmentAutocomplete
+          label="Department"
+          value={selectedDepartment?.id ?? ''}
+          onChange={(id) => {
+            setSelectedDepartment(id ? ({ id } as Department) : null);
+          }}
           required
+          error={!selectedDepartment && error ? 'Please select a department' : undefined}
         />
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
@@ -282,12 +294,13 @@ export const EncountersPage = () => {
 
       {/* Filter bar */}
       <div className="px-4 pb-4 flex flex-wrap gap-3 items-center">
-        <Input
-          placeholder="Filter by Unit ID"
-          value={filterUnit}
-          onChange={(e) => setFilterUnit(e.target.value)}
-          className="w-48"
-        />
+        <div className="w-48">
+          <UnitAutocomplete
+            placeholder="Filter by unit…"
+            value={filterUnit}
+            onChange={setFilterUnit}
+          />
+        </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}

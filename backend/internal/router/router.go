@@ -6,6 +6,7 @@ import (
 "github.com/wardflow/backend/internal/careteam"
 "github.com/wardflow/backend/internal/consult"
 "github.com/wardflow/backend/internal/dashboard"
+"github.com/wardflow/backend/internal/department"
 "github.com/wardflow/backend/internal/encounter"
 "github.com/wardflow/backend/internal/exception"
 "github.com/wardflow/backend/internal/flow"
@@ -14,6 +15,7 @@ import (
 "github.com/wardflow/backend/internal/middleware"
 "github.com/wardflow/backend/internal/patient"
 "github.com/wardflow/backend/internal/task"
+"github.com/wardflow/backend/internal/unit"
 "github.com/wardflow/backend/pkg/auth"
 "github.com/wardflow/backend/pkg/database"
 )
@@ -90,6 +92,13 @@ patientRepo := patient.NewRepository(db)
 patientService := patient.NewService(patientRepo)
 patientHandler := patient.NewHandler(patientService, db)
 patient.RegisterRoutes(r.mux, patientHandler, r.jwtService)
+
+// Reference data routes - Departments and Units
+departmentHandler := department.NewHandler(db)
+department.RegisterRoutes(r.mux, departmentHandler, r.jwtService)
+
+unitHandler := unit.NewHandler(db)
+unit.RegisterRoutes(r.mux, unitHandler, r.jwtService)
 
 // Clinical Core routes (Developer A)
 careteam.RegisterRoutes(r.mux, db, r.jwtService)

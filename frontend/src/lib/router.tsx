@@ -17,6 +17,8 @@ import BedManagementPage from '../pages/BedManagementPage';
 import TransportPage from '../pages/TransportPage';
 import DischargePage from '../pages/DischargePage';
 import IncidentsPage from '../pages/IncidentsPage';
+import DepartmentsPage from '../pages/DepartmentsPage';
+import UnitsPage from '../pages/UnitsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
@@ -159,6 +161,24 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredPermission="view_care_team">
         <DischargePage />
+      </ProtectedRoute>
+    ),
+  },
+
+  // Administration
+  {
+    path: ROUTES.DEPARTMENT_LIST,
+    element: (
+      <ProtectedRoute>
+        <DepartmentsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.UNIT_LIST,
+    element: (
+      <ProtectedRoute>
+        <UnitsPage />
       </ProtectedRoute>
     ),
   },
