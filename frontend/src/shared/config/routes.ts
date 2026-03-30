@@ -12,6 +12,9 @@ export const ROUTES = {
   // Protected routes
   DASHBOARD: '/dashboard',
   
+  // Patient routes
+  PATIENT_LIST: '/patients',
+  
   // Encounter routes
   ENCOUNTER_LIST: '/encounters',
   ENCOUNTER_DETAIL: '/encounters/:id',
@@ -26,7 +29,17 @@ export const ROUTES = {
   // Consult routes
   CONSULT_LIST: '/consults',
   CONSULT_DETAIL: '/consults/:id',
-  
+
+  // Exception routes
+  EXCEPTION_LIST: '/exceptions',
+  EXCEPTION_DETAIL: '/exceptions/:id',
+
+  // Incident routes
+  INCIDENT_LIST: '/incidents',
+  INCIDENT_REPORT: '/incidents/report',
+  INCIDENT_REVIEW: '/incidents/review',
+  INCIDENT_DETAIL: '/incidents/:id',
+
   // Bed management routes
   BED_LIST: '/beds',
   BED_DETAIL: '/beds/:id',
@@ -39,9 +52,9 @@ export const ROUTES = {
   DISCHARGE_LIST: '/discharge',
   DISCHARGE_DETAIL: '/discharge/:id',
   
-  // Incident routes
-  INCIDENT_LIST: '/incidents',
-  INCIDENT_DETAIL: '/incidents/:id',
+  // Admin routes
+  DEPARTMENT_LIST: '/admin/departments',
+  UNIT_LIST: '/admin/units',
   
   // Error routes
   NOT_FOUND: '/404',
@@ -80,4 +93,10 @@ export const navHelpers = {
   
   toConsultDetail: (consultId: string) => 
     buildRoute(ROUTES.CONSULT_DETAIL, { id: consultId }),
+  
+  toExceptionDetail: (exceptionId: string) =>
+    buildRoute(ROUTES.EXCEPTION_DETAIL, { id: exceptionId }),
+  
+  toIncidentDetail: (incidentId: string) =>
+    buildRoute(ROUTES.INCIDENT_DETAIL, { id: incidentId }),
 };
