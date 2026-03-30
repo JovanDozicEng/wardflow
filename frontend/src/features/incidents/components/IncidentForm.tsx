@@ -52,11 +52,20 @@ export const IncidentForm = ({ onSubmit, loading = false }: IncidentFormProps) =
       }
     }
 
+    // Normalize datetime-local value ("YYYY-MM-DDTHH:mm") to RFC3339 ("YYYY-MM-DDTHH:mm:00Z")
+    const normalizeEventTime = (dt: string): string => {
+      if (!dt) return dt;
+      // Already has seconds/timezone — leave as-is
+      if (/T\d{2}:\d{2}:\d{2}/.test(dt)) return dt.endsWith('Z') ? dt : dt + 'Z';
+      return dt + ':00Z';
+    };
+
     const submitData: CreateIncidentRequest = {
       ...formData,
       encounterId: formData.encounterId?.trim() || undefined,
       severity: formData.severity || undefined,
       harmIndicators: Object.keys(parsedHarmIndicators).length > 0 ? parsedHarmIndicators : undefined,
+      eventTime: normalizeEventTime(formData.eventTime),
     };
 
     try {
