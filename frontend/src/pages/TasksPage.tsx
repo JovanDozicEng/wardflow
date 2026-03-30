@@ -20,8 +20,8 @@ export const TasksPage = () => {
     try {
       setIsLoading(true);
       const response = await taskService.listTasks(filters);
-      // Backend returns paginated response: { data: Task[], total, limit, offset }
-      const taskData = response.data ?? response;
+      // Backend returns paginated response: { tasks: Task[], total, limit, offset }
+      const taskData = response.tasks ?? [];
       setTasks(Array.isArray(taskData) ? taskData : []);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
@@ -46,7 +46,12 @@ export const TasksPage = () => {
   const handleSubmitTask = async (data: CreateTaskRequest) => {
     await taskService.createTask(data);
     setShowCreateForm(false);
-    fetchTasks(); // Refresh tasks
+    fetchTasks();
+  };
+
+  const handleStatusChange = async (task: Task, newStatus: import('../features/tasks/types').TaskStatus) => {
+    await taskService.updateTask(task.id, { status: newStatus });
+    fetchTasks();
   };
 
   return (
@@ -60,6 +65,7 @@ export const TasksPage = () => {
         tasks={tasks}
         onTaskClick={handleTaskClick}
         onCreateTask={handleCreateTask}
+        onStatusChange={handleStatusChange}
         onFilterChange={fetchTasks}
         isLoading={isLoading}
       />

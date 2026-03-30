@@ -12,7 +12,7 @@ import type {
 
 export const exceptionService = {
   list: (params?: { encounterId?: string; type?: string; status?: string }) =>
-    api.get<ExceptionEvent[]>('/exceptions', { params }),
+    api.get<{ data: ExceptionEvent[]; total: number; limit: number; offset: number }>('/exceptions', { params }),
   
   create: (data: CreateExceptionRequest) =>
     api.post<ExceptionEvent>('/exceptions', data),

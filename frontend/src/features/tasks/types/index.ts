@@ -76,7 +76,7 @@ export interface CompleteTaskRequest {
 
 // List tasks response (matches backend ListTasksResponse)
 export interface ListTasksResponse {
-  data: Task[];
+  tasks: Task[];
   total: number;
   limit: number;
   offset: number;

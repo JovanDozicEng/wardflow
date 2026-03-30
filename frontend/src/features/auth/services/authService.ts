@@ -4,7 +4,7 @@
  */
 
 import api from '../../../shared/utils/api';
-import type { LoginCredentials, RegisterRequest, LoginResponse, UserInfo } from '../types/auth.types';
+import type { LoginCredentials, RegisterRequest, LoginResponse } from '../types/auth.types';
 
 export const authService = {
   /**
@@ -25,9 +25,10 @@ export const authService = {
 
   /**
    * Get current user info
+   * Backend returns the user object directly (flat), not wrapped in { user: ... }
    */
-  me: async (): Promise<UserInfo> => {
-    const response = await api.get<UserInfo>('/auth/me');
+  me: async (): Promise<import('../../../shared/types').User> => {
+    const response = await api.get<import('../../../shared/types').User>('/auth/me');
     return response.data;
   },
 

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/wardflow/backend/internal/audit"
 	"github.com/wardflow/backend/internal/httputil"
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
@@ -12,12 +13,14 @@ import (
 // Handler handles HTTP requests for task management
 type Handler struct {
 	service *Service
+	db      *database.DB
 }
 
 // NewHandler creates a new task handler
 func NewHandler(db *database.DB) *Handler {
 	return &Handler{
 		service: NewService(db),
+		db:      db,
 	}
 }
 
@@ -119,6 +122,14 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "task",
+		EntityID:   task.ID,
+		Action:     "CREATE",
+		ByUserID:   userCtx.UserID,
+		After:      task,
+	})
+
 	httputil.RespondJSON(w, http.StatusCreated, task)
 }
 
@@ -149,6 +160,14 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, r, http.StatusBadRequest, "UPDATE_FAILED", err.Error())
 		return
 	}
+
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "task",
+		EntityID:   taskID,
+		Action:     "UPDATE",
+		ByUserID:   userCtx.UserID,
+		After:      task,
+	})
 
 	httputil.RespondJSON(w, http.StatusOK, task)
 }
@@ -185,6 +204,14 @@ func (h *Handler) AssignTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "task",
+		EntityID:   taskID,
+		Action:     "ASSIGN",
+		ByUserID:   userCtx.UserID,
+		After:      task,
+	})
+
 	httputil.RespondJSON(w, http.StatusOK, task)
 }
 
@@ -219,6 +246,14 @@ func (h *Handler) CompleteTask(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, r, http.StatusBadRequest, "COMPLETE_FAILED", err.Error())
 		return
 	}
+
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "task",
+		EntityID:   taskID,
+		Action:     "COMPLETE",
+		ByUserID:   userCtx.UserID,
+		After:      task,
+	})
 
 	httputil.RespondJSON(w, http.StatusOK, task)
 }

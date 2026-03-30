@@ -12,7 +12,7 @@ import type {
 
 export const incidentService = {
   list: (params?: { unitId?: string; status?: string; type?: string }) =>
-    api.get<Incident[]>('/incidents', { params }),
+    api.get<{ data: Incident[]; total: number; limit: number; offset: number }>('/incidents', { params }),
   
   create: (data: CreateIncidentRequest) =>
     api.post<Incident>('/incidents', data),

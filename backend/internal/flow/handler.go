@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/wardflow/backend/internal/audit"
 	"github.com/wardflow/backend/internal/httputil"
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
@@ -12,12 +13,14 @@ import (
 // Handler handles HTTP requests for flow tracking
 type Handler struct {
 	service *Service
+	db      *database.DB
 }
 
 // NewHandler creates a new flow handler
 func NewHandler(db *database.DB) *Handler {
 	return &Handler{
 		service: NewService(db),
+		db:      db,
 	}
 }
 
@@ -113,6 +116,14 @@ func (h *Handler) RecordTransition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "flow_state_transition",
+		EntityID:   transition.ID,
+		Action:     "TRANSITION",
+		ByUserID:   userCtx.UserID,
+		After:      transition,
+	})
+
 	httputil.RespondJSON(w, http.StatusCreated, transition)
 }
 
@@ -148,6 +159,16 @@ func (h *Handler) OverrideTransition(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, r, http.StatusBadRequest, "OVERRIDE_FAILED", err.Error())
 		return
 	}
+
+	reason := req.Reason
+	audit.Log(ctx, h.db, r, audit.Entry{
+		EntityType: "flow_state_transition",
+		EntityID:   transition.ID,
+		Action:     "OVERRIDE",
+		ByUserID:   userCtx.UserID,
+		Reason:     &reason,
+		After:      transition,
+	})
 
 	httputil.RespondJSON(w, http.StatusCreated, transition)
 }

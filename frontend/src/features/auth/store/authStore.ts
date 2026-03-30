@@ -90,9 +90,10 @@ export const useAuthStore = create<AuthState>()(
 
         set({ isLoading: true });
         try {
-          const response = await authService.me();
+          // authService.me() returns the User object directly
+          const user = await authService.me();
           set({
-            user: response.user,
+            user,
             token,
             isAuthenticated: true,
             isLoading: false,

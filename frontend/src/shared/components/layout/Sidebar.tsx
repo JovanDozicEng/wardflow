@@ -13,7 +13,6 @@ import {
   Bed,
   Truck,
   ClipboardCheck,
-  AlertTriangle,
   ShieldAlert,
   FileWarning,
   Search,
