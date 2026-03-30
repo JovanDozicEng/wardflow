@@ -10,6 +10,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { useIncidentActions } from '../hooks/useIncidentActions';
 import { usePermissions } from '@/features/auth/hooks/usePermissions';
 import type { Incident, UpdateIncidentStatusRequest } from '../types/incident.types';
+import { Layout } from '@/shared/components/layout/Layout';
 
 export const IncidentReviewPage = () => {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -48,6 +49,7 @@ export const IncidentReviewPage = () => {
 
   if (!canReviewIncidents) {
     return (
+      <Layout>
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
           <h2 className="text-xl font-semibold text-red-900 mb-2">Access Denied</h2>
@@ -56,10 +58,12 @@ export const IncidentReviewPage = () => {
           </p>
         </div>
       </div>
+      </Layout>
     );
   }
 
   return (
+    <Layout>
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-6">
@@ -109,5 +113,6 @@ export const IncidentReviewPage = () => {
         loading={loading}
       />
     </div>
+    </Layout>
   );
 };

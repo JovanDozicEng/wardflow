@@ -1,29 +1,34 @@
 /**
- * Incidents Page - Quality/Safety incident logging
- * TODO: Implement incident reporting view
+ * IncidentsPage - List all safety incidents
  */
 
+import { useState } from 'react';
 import { Layout } from '../shared/components/layout/Layout';
 import { PageHeader } from '../shared/components/layout/PageHeader';
+import { IncidentList } from '../features/incidents/components/IncidentList';
+import { IncidentDetail } from '../features/incidents/components/IncidentDetail';
+import type { Incident } from '../features/incidents/types/incident.types';
 
 export const IncidentsPage = () => {
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+
   return (
     <Layout>
       <PageHeader
         title="Safety Incidents"
-        subtitle="Quality and safety incident reporting"
+        subtitle="Quality and safety incident reports"
       />
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <div className="text-6xl mb-4">⚠️</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Safety Incidents Module
-        </h2>
-        <p className="text-gray-600 mb-4">
-          This page will display incident reports with review workflows.
-        </p>
-        <p className="text-sm text-gray-500">
-          Coming soon: Incident reporting, review process, resolution tracking
-        </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-4 pb-8">
+        <IncidentList onSelectIncident={setSelectedIncident} />
+        <div>
+          {selectedIncident ? (
+            <IncidentDetail incident={selectedIncident} />
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+              <p className="text-gray-600">Select an incident to view details</p>
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );
