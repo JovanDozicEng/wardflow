@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Layout } from '../shared/components/layout/Layout';
 import { PageHeader } from '../shared/components/layout/PageHeader';
 import { Spinner } from '../shared/components/ui/Spinner';
@@ -323,10 +323,9 @@ export const EncounterDetailPage = () => {
   if (!encounterId) {
     return (
       <Layout>
-        <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <h2 className="text-xl font-semibold text-red-900">Missing Encounter ID</h2>
-          </div>
+        <PageHeader title="Encounter" subtitle="Missing encounter ID" />
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold text-red-900">Missing Encounter ID</h2>
         </div>
       </Layout>
     );
@@ -334,40 +333,36 @@ export const EncounterDetailPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <div className="mb-4">
-          <Link to={ROUTES.ENCOUNTER_LIST} className="text-sm text-blue-600 hover:underline">
-            ← Back to Encounters
-          </Link>
-        </div>
+      <PageHeader
+        title="Encounter"
+        subtitle={`ID: ${encounterId}`}
+        breadcrumbs={[
+          { label: 'Encounters', href: ROUTES.ENCOUNTER_LIST },
+          { label: encounterId ?? '' },
+        ]}
+      />
 
-        <PageHeader
-          title="Encounter"
-          subtitle={`ID: ${encounterId}`}
-        />
+      {/* Tab bar */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-6">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
-        {/* Tab bar */}
-        <div className="mt-6 border-b border-gray-200">
-          <nav className="-mb-px flex gap-6">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Tab content */}
-        <div className="mt-6">
+      {/* Tab content */}
+      <div className="mt-6">
           {/* --- Care Team Tab --- */}
           {activeTab === 'care-team' && (
             <CareTeamList
@@ -616,7 +611,6 @@ export const EncounterDetailPage = () => {
             </div>
           )}
         </div>
-      </div>
     </Layout>
   );
 };
