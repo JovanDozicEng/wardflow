@@ -3,6 +3,7 @@ package httputil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/wardflow/backend/internal/models"
@@ -64,4 +65,21 @@ func CorrelationIDFromContext(ctx context.Context) string {
 		return id
 	}
 	return ""
+}
+
+// DecodeJSON decodes JSON request body into the given value
+func DecodeJSON(r *http.Request, v any) error {
+	if r.Body == nil {
+		return fmt.Errorf("request body is empty")
+	}
+	defer r.Body.Close()
+	
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields() // Strict parsing
+	
+	if err := decoder.Decode(v); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+	
+	return nil
 }

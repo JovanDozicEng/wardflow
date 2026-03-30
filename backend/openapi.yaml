@@ -369,18 +369,52 @@ paths:
       summary: Get flow state timeline for encounter
       operationId: getFlowTimeline
       tags: [Flow]
+      parameters:
+        - name: withActors
+          in: query
+          description: Include actor details (name, email)
+          schema:
+            type: boolean
+            default: false
+        - name: paginated
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/limitQuery"
+        - $ref: "#/components/parameters/offsetQuery"
       responses:
         "200":
           description: Flow state transitions in chronological order
           content:
             application/json:
               schema:
+                $ref: "#/components/schemas/FlowTimelineResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/encounters/{encounterId}/flow/current:
+    parameters:
+      - $ref: "#/components/parameters/encounterIdPath"
+    get:
+      summary: Get current flow state
+      operationId: getCurrentFlowState
+      tags: [Flow]
+      responses:
+        "200":
+          description: Current state
+          content:
+            application/json:
+              schema:
                 type: object
                 properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/FlowStateTransition"
+                  encounterId:
+                    type: string
+                    format: uuid
+                  currentState:
+                    $ref: "#/components/schemas/FlowState"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/v1/encounters/{encounterId}/flow/transitions:
     parameters:
@@ -394,7 +428,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateFlowTransitionRequest"
+              $ref: "#/components/schemas/CreateTransitionRequest"
       responses:
         "201":
           description: Transition recorded
@@ -419,7 +453,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OverrideFlowStateRequest"
+              $ref: "#/components/schemas/OverrideTransitionRequest"
       responses:
         "201":
           description: Override recorded
@@ -434,15 +468,14 @@ paths:
 
   /api/v1/tasks:
     get:
-      summary: List tasks
+      summary: List tasks with filtering
       operationId: listTasks
       tags: [Tasks]
       parameters:
         - name: scopeType
           in: query
           schema:
-            type: string
-            enum: [encounter, patient, unit]
+            $ref: "#/components/schemas/ScopeType"
         - name: scopeId
           in: query
           schema:
@@ -451,10 +484,24 @@ paths:
           in: query
           schema:
             $ref: "#/components/schemas/TaskStatus"
+        - name: ownerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: priority
+          in: query
+          schema:
+            $ref: "#/components/schemas/TaskPriority"
         - name: overdue
           in: query
           schema:
             type: boolean
+        - name: withOwnerDetails
+          in: query
+          schema:
+            type: boolean
+            default: false
         - $ref: "#/components/parameters/limitQuery"
         - $ref: "#/components/parameters/offsetQuery"
       responses:
@@ -463,14 +510,9 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/PaginatedResponse"
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/Task"
+                $ref: "#/components/schemas/ListTasksResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       summary: Create a task
       operationId: createTask
@@ -494,8 +536,21 @@ paths:
   /api/v1/tasks/{taskId}:
     parameters:
       - $ref: "#/components/parameters/taskIdPath"
+    get:
+      summary: Get task details
+      operationId: getTask
+      tags: [Tasks]
+      responses:
+        "200":
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
     patch:
-      summary: Update task (status, owner, details)
+      summary: Update task (status, details)
       operationId: updateTask
       tags: [Tasks]
       requestBody:
@@ -518,7 +573,7 @@ paths:
     parameters:
       - $ref: "#/components/parameters/taskIdPath"
     post:
-      summary: Assign task to a user
+      summary: Assign or reassign task to a user
       operationId: assignTask
       tags: [Tasks]
       requestBody:
@@ -526,14 +581,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [userId]
-              properties:
-                userId:
-                  type: string
-                  format: uuid
-                reason:
-                  type: string
+              $ref: "#/components/schemas/AssignTaskRequest"
       responses:
         "200":
           description: Task assigned
@@ -541,6 +589,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /api/v1/tasks/{taskId}/complete:
     parameters:
@@ -553,10 +603,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                note:
-                  type: string
+              $ref: "#/components/schemas/CompleteTaskRequest"
       responses:
         "200":
           description: Task completed
@@ -564,6 +611,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /api/v1/tasks/{taskId}/history:
     parameters:
@@ -593,15 +642,23 @@ paths:
       operationId: getHuddleDashboard
       tags: [Dashboard]
       parameters:
-        - $ref: "#/components/parameters/unitIdQuery"
-        - $ref: "#/components/parameters/departmentIdQuery"
+        - name: unitId
+          in: query
+          description: Filter to specific unit (RBAC enforced)
+          schema:
+            type: string
+        - name: departmentId
+          in: query
+          description: Filter to specific department (RBAC enforced)
+          schema:
+            type: string
       responses:
         "200":
-          description: Dashboard data aggregated by unit
+          description: Dashboard data aggregated by unit/department
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HuddleDashboard"
+                $ref: "#/components/schemas/HuddleMetrics"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1471,7 +1528,19 @@ components:
         unitId:
           type: string
 
-    # Care Team (Dev A — full schema TBD)
+    # Care Team (Dev A)
+    RoleType:
+      type: string
+      enum:
+        - primary_nurse
+        - attending_provider
+        - consulting_provider
+        - resident
+        - respiratory_therapist
+        - case_manager
+        - social_worker
+        - other
+
     CareTeamAssignment:
       type: object
       properties:
@@ -1485,7 +1554,7 @@ components:
           type: string
           format: uuid
         roleType:
-          type: string
+          $ref: "#/components/schemas/RoleType"
         startsAt:
           type: string
           format: date-time
@@ -1499,8 +1568,11 @@ components:
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
-    CreateCareTeamAssignmentRequest:
+    AssignRoleRequest:
       type: object
       required: [userId, roleType]
       properties:
@@ -1508,20 +1580,26 @@ components:
           type: string
           format: uuid
         roleType:
+          $ref: "#/components/schemas/RoleType"
+        startsAt:
           type: string
+          format: date-time
+          description: Defaults to now if omitted
 
-    TransferAssignmentRequest:
+    TransferRoleRequest:
       type: object
-      required: [toUserId, handoffNote]
+      required: [toUserId]
       properties:
         toUserId:
           type: string
           format: uuid
         handoffNote:
           type: string
+          description: Required for critical roles (primary_nurse, attending_provider)
         structuredFields:
           type: object
           additionalProperties: true
+          description: Optional structured handoff data (alerts, pending tasks, etc.)
 
     HandoffNote:
       type: object
@@ -1532,6 +1610,9 @@ components:
         encounterId:
           type: string
           format: uuid
+        assignmentId:
+          type: string
+          format: uuid
         fromUserId:
           type: string
           format: uuid
@@ -1539,14 +1620,62 @@ components:
           type: string
           format: uuid
         roleType:
-          type: string
+          $ref: "#/components/schemas/RoleType"
         note:
           type: string
+        structuredFields:
+          type: object
+          additionalProperties: true
+          nullable: true
         createdAt:
           type: string
           format: date-time
 
-    # Flow (Dev A — full schema TBD)
+    ListAssignmentsResponse:
+      type: object
+      properties:
+        encounterId:
+          type: string
+          format: uuid
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/CareTeamAssignment"
+
+    CareTeamResponse:
+      type: object
+      properties:
+        encounterId:
+          type: string
+          format: uuid
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              assignment:
+                $ref: "#/components/schemas/CareTeamAssignment"
+              userName:
+                type: string
+              userEmail:
+                type: string
+
+    # Flow (Dev A)
+    FlowState:
+      type: string
+      enum:
+        - arrived
+        - triage
+        - provider_eval
+        - diagnostics
+        - admitted
+        - discharge_ready
+        - discharged
+
+    ActorType:
+      type: string
+      enum: [user, system]
+
     FlowStateTransition:
       type: object
       properties:
@@ -1557,16 +1686,16 @@ components:
           type: string
           format: uuid
         fromState:
-          type: string
+          $ref: "#/components/schemas/FlowState"
           nullable: true
+          description: Null for initial state
         toState:
-          type: string
-        at:
+          $ref: "#/components/schemas/FlowState"
+        transitionedAt:
           type: string
           format: date-time
         actorType:
-          type: string
-          enum: [user, system]
+          $ref: "#/components/schemas/ActorType"
         actorUserId:
           type: string
           format: uuid
@@ -1574,29 +1703,76 @@ components:
         reason:
           type: string
           nullable: true
+        sourceEventId:
+          type: string
+          format: uuid
+          nullable: true
+        isOverride:
+          type: boolean
+          description: Marks privileged invalid transitions
+        createdAt:
+          type: string
+          format: date-time
 
-    CreateFlowTransitionRequest:
+    CreateTransitionRequest:
       type: object
       required: [toState]
       properties:
         toState:
+          $ref: "#/components/schemas/FlowState"
+        transitionedAt:
           type: string
+          format: date-time
+          description: Defaults to now if omitted
         reason:
           type: string
 
-    OverrideFlowStateRequest:
+    OverrideTransitionRequest:
       type: object
       required: [toState, reason]
       properties:
+        fromState:
+          $ref: "#/components/schemas/FlowState"
+          nullable: true
+          description: Explicit from state for override
         toState:
-          type: string
+          $ref: "#/components/schemas/FlowState"
         reason:
           type: string
+          description: Mandatory for overrides
+        transitionedAt:
+          type: string
+          format: date-time
 
-    # Tasks (Dev A — full schema TBD)
+    FlowTimelineResponse:
+      type: object
+      properties:
+        encounterId:
+          type: string
+          format: uuid
+        currentState:
+          $ref: "#/components/schemas/FlowState"
+          nullable: true
+        transitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlowStateTransition"
+        total:
+          type: integer
+          format: int64
+
+    # Tasks (Dev A)
     TaskStatus:
       type: string
       enum: [open, in_progress, completed, cancelled, escalated]
+
+    TaskPriority:
+      type: string
+      enum: [low, medium, high, urgent]
+
+    ScopeType:
+      type: string
+      enum: [encounter, patient, unit]
 
     Task:
       type: object
@@ -1605,19 +1781,22 @@ components:
           type: string
           format: uuid
         scopeType:
-          type: string
-          enum: [encounter, patient, unit]
+          $ref: "#/components/schemas/ScopeType"
         scopeId:
           type: string
         title:
           type: string
         details:
           type: string
+          nullable: true
         status:
           $ref: "#/components/schemas/TaskStatus"
         priority:
+          $ref: "#/components/schemas/TaskPriority"
+        ownerId:
           type: string
-          enum: [low, medium, high, critical]
+          format: uuid
+          nullable: true
         slaDueAt:
           type: string
           format: date-time
@@ -1626,6 +1805,9 @@ components:
           type: string
           format: uuid
         createdAt:
+          type: string
+          format: date-time
+        updatedAt:
           type: string
           format: date-time
         completedBy:
@@ -1642,8 +1824,7 @@ components:
       required: [scopeType, scopeId, title]
       properties:
         scopeType:
-          type: string
-          enum: [encounter, patient, unit]
+          $ref: "#/components/schemas/ScopeType"
         scopeId:
           type: string
         title:
@@ -1651,8 +1832,7 @@ components:
         details:
           type: string
         priority:
-          type: string
-          enum: [low, medium, high, critical]
+          $ref: "#/components/schemas/TaskPriority"
           default: medium
         slaDueAt:
           type: string
@@ -1664,9 +1844,31 @@ components:
         status:
           $ref: "#/components/schemas/TaskStatus"
         priority:
+          $ref: "#/components/schemas/TaskPriority"
+        title:
           type: string
-          enum: [low, medium, high, critical]
         details:
+          type: string
+        slaDueAt:
+          type: string
+          format: date-time
+
+    AssignTaskRequest:
+      type: object
+      required: [toOwnerId]
+      properties:
+        toOwnerId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Set to null to unassign
+        reason:
+          type: string
+
+    CompleteTaskRequest:
+      type: object
+      properties:
+        completionNote:
           type: string
 
     TaskAssignmentEvent:
@@ -1678,56 +1880,192 @@ components:
         taskId:
           type: string
           format: uuid
-        fromOwner:
+        fromOwnerId:
           type: string
           format: uuid
           nullable: true
-        toOwner:
+        toOwnerId:
           type: string
           format: uuid
-        at:
+          nullable: true
+        assignedAt:
           type: string
           format: date-time
-        byUserId:
+        assignedBy:
           type: string
           format: uuid
         reason:
           type: string
           nullable: true
+        createdAt:
+          type: string
+          format: date-time
 
-    # Dashboard (Dev A — full schema TBD)
-    HuddleDashboard:
+    ListTasksResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    # Dashboard (Dev A)
+    HuddleMetrics:
       type: object
       properties:
         unitId:
           type: string
+          nullable: true
+        departmentId:
+          type: string
+          nullable: true
         generatedAt:
           type: string
           format: date-time
         census:
-          type: integer
-        expectedDischarges:
-          type: integer
-        overdueTaskCount:
-          type: integer
-        pendingConsultCount:
-          type: integer
-        encounters:
+          type: object
+          properties:
+            active:
+              type: integer
+              format: int64
+            expectedDischarges:
+              type: integer
+              format: int64
+        flowDistribution:
+          $ref: "#/components/schemas/FlowDistribution"
+        taskMetrics:
+          $ref: "#/components/schemas/TaskMetrics"
+        riskIndicators:
+          $ref: "#/components/schemas/RiskIndicators"
+        overdueTasks:
           type: array
           items:
-            type: object
-            properties:
-              encounterId:
-                type: string
-                format: uuid
-              patientId:
-                type: string
-              flowState:
-                type: string
-              riskFlags:
-                type: array
-                items:
-                  type: string
+            $ref: "#/components/schemas/TaskSummary"
+        longStayPatients:
+          type: array
+          items:
+            $ref: "#/components/schemas/EncounterSummary"
+        pendingDischarges:
+          type: array
+          items:
+            $ref: "#/components/schemas/EncounterSummary"
+
+    FlowDistribution:
+      type: object
+      properties:
+        arrived:
+          type: integer
+          format: int64
+        triage:
+          type: integer
+          format: int64
+        providerEval:
+          type: integer
+          format: int64
+        diagnostics:
+          type: integer
+          format: int64
+        admitted:
+          type: integer
+          format: int64
+        dischargeReady:
+          type: integer
+          format: int64
+        discharged:
+          type: integer
+          format: int64
+
+    RiskIndicators:
+      type: object
+      properties:
+        patientsInTriageOver2hrs:
+          type: integer
+          format: int64
+        patientsWaitingForBedOver4hrs:
+          type: integer
+          format: int64
+        overdueHighPriorityTasks:
+          type: integer
+          format: int64
+        unassignedUrgentTasks:
+          type: integer
+          format: int64
+        encountersWithoutCareTeam:
+          type: integer
+          format: int64
+
+    TaskMetrics:
+      type: object
+      properties:
+        totalOpen:
+          type: integer
+          format: int64
+        totalOverdue:
+          type: integer
+          format: int64
+        highPriority:
+          type: integer
+          format: int64
+        urgent:
+          type: integer
+          format: int64
+        unassigned:
+          type: integer
+          format: int64
+        completedToday:
+          type: integer
+          format: int64
+
+    TaskSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+        slaDueAt:
+          type: string
+          format: date-time
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        scopeType:
+          $ref: "#/components/schemas/ScopeType"
+        scopeId:
+          type: string
+
+    EncounterSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+        unitId:
+          type: string
+        departmentId:
+          type: string
+        currentState:
+          $ref: "#/components/schemas/FlowState"
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        lengthOfStay:
+          type: string
+          description: "Human-readable duration (e.g., '2d 3h')"
 
     # Beds (Dev B — full schema TBD)
     BedStatus:
