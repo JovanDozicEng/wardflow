@@ -8,6 +8,7 @@ import type { CreateTaskRequest, ScopeType, TaskPriority } from '../types';
 import { TaskPriorityLabels, ScopeTypeLabels } from '../types';
 import { Button } from '../../../shared/components/ui/Button';
 import { Modal } from '../../../shared/components/ui/Modal';
+import { EncounterAutocomplete } from '../../../shared/components/ui/EncounterAutocomplete';
 
 interface CreateTaskFormProps {
   isOpen: boolean;
@@ -138,20 +139,32 @@ export const CreateTaskForm = ({
 
         {/* Scope ID */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {ScopeTypeLabels[formData.scopeType]} ID <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.scopeId}
-            onChange={(e) => handleChange('scopeId', e.target.value)}
-            disabled={!!defaultScopeId}
-            placeholder={`Enter ${ScopeTypeLabels[formData.scopeType]} ID`}
-            className={`w-full px-3 py-2 border rounded-lg ${
-              errors.scopeId ? 'border-red-500' : 'border-gray-300'
-            }`}
-          />
-          {errors.scopeId && <p className="mt-1 text-sm text-red-600">{errors.scopeId}</p>}
+          {formData.scopeType === 'encounter' && !defaultScopeId ? (
+            <EncounterAutocomplete
+              label={`${ScopeTypeLabels[formData.scopeType]} ID`}
+              value={formData.scopeId}
+              onChange={(id) => handleChange('scopeId', id)}
+              required
+              error={errors.scopeId}
+            />
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {ScopeTypeLabels[formData.scopeType]} ID <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.scopeId}
+                onChange={(e) => handleChange('scopeId', e.target.value)}
+                disabled={!!defaultScopeId}
+                placeholder={`Enter ${ScopeTypeLabels[formData.scopeType]} ID`}
+                className={`w-full px-3 py-2 border rounded-lg ${
+                  errors.scopeId ? 'border-red-500' : 'border-gray-300'
+                }`}
+              />
+              {errors.scopeId && <p className="mt-1 text-sm text-red-600">{errors.scopeId}</p>}
+            </>
+          )}
         </div>
 
         {/* Title */}

@@ -7,6 +7,7 @@ import { Input } from '@/shared/components/ui/Input';
 import { Button } from '@/shared/components/ui/Button';
 import { Select } from '@/shared/components/ui/Select';
 import { Card } from '@/shared/components/ui/Card';
+import { EncounterAutocomplete } from '@/shared/components/ui/EncounterAutocomplete';
 import type { CreateIncidentRequest } from '../types/incident.types';
 
 interface IncidentFormProps {
@@ -116,18 +117,13 @@ export const IncidentForm = ({ onSubmit, loading = false }: IncidentFormProps) =
           />
         </div>
 
-        <div>
-          <label htmlFor="encounterId" className="block text-sm font-medium text-gray-700 mb-1">
-            Encounter ID (Optional)
-          </label>
-          <Input
-            id="encounterId"
-            value={formData.encounterId || ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, encounterId: e.target.value })}
-            placeholder="Associated encounter ID"
-            disabled={loading}
-          />
-        </div>
+        <EncounterAutocomplete
+          label="Encounter (Optional)"
+          value={formData.encounterId || ''}
+          onChange={(id) => setFormData({ ...formData, encounterId: id })}
+          disabled={loading}
+          placeholder="Search and select encounter…"
+        />
 
         <div>
           <label htmlFor="severity" className="block text-sm font-medium text-gray-700 mb-1">

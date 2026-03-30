@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Modal } from '@/shared/components/ui/Modal';
 import { Input } from '@/shared/components/ui/Input';
 import { Button } from '@/shared/components/ui/Button';
+import { EncounterAutocomplete } from '@/shared/components/ui/EncounterAutocomplete';
 import type { CreateExceptionRequest, ExceptionEvent } from '../types/exception.types';
 
 interface ExceptionFormProps {
@@ -99,18 +100,13 @@ export const ExceptionForm = ({
 
         {!editMode && (
           <>
-            <div>
-              <label htmlFor="encounterId" className="block text-sm font-medium text-gray-700 mb-1">
-                Encounter ID *
-              </label>
-              <Input
-                id="encounterId"
-                value={encounterId}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEncounterId(e.target.value)}
-                placeholder="Enter encounter ID"
-                disabled={loading}
-              />
-            </div>
+            <EncounterAutocomplete
+              label="Encounter"
+              value={encounterId}
+              onChange={setEncounterId}
+              required
+              disabled={loading}
+            />
 
             <div>
               <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">

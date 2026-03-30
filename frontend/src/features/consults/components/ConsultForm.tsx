@@ -7,6 +7,7 @@ import { Modal } from '@/shared/components/ui/Modal';
 import { Input } from '@/shared/components/ui/Input';
 import { Button } from '@/shared/components/ui/Button';
 import { Select } from '@/shared/components/ui/Select';
+import { EncounterAutocomplete } from '@/shared/components/ui/EncounterAutocomplete';
 import type { CreateConsultRequest, ConsultUrgency } from '../types/consult.types';
 
 interface ConsultFormProps {
@@ -72,18 +73,13 @@ export const ConsultForm = ({ isOpen, onClose, onSubmit, loading = false }: Cons
           </div>
         )}
 
-        <div>
-          <label htmlFor="encounterId" className="block text-sm font-medium text-gray-700 mb-1">
-            Encounter ID *
-          </label>
-          <Input
-            id="encounterId"
-            value={formData.encounterId}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, encounterId: e.target.value })}
-            placeholder="Enter encounter ID"
-            disabled={loading}
-          />
-        </div>
+        <EncounterAutocomplete
+          label="Encounter"
+          value={formData.encounterId}
+          onChange={(id) => setFormData({ ...formData, encounterId: id })}
+          required
+          disabled={loading}
+        />
 
         <div>
           <label htmlFor="targetService" className="block text-sm font-medium text-gray-700 mb-1">
