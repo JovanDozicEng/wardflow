@@ -6,7 +6,11 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
 // API base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+// Note: Base URL should NOT include /api/v1 as different routes have different prefixes:
+//   - System routes: /health, /readyz
+//   - Auth routes: /auth/*
+//   - API routes: /api/v1/*
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 // Create axios instance with defaults
 export const api: AxiosInstance = axios.create({
