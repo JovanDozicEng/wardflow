@@ -23,7 +23,7 @@ export const AssignTaskModal = ({
   onClose,
   onSubmit,
   taskTitle,
-  currentOwnerId,
+  currentOwnerId: _currentOwnerId,
   currentOwnerName,
 }: AssignTaskModalProps) => {
   const [toOwnerId, setToOwnerId] = useState('');

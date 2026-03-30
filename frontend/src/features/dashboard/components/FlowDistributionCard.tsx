@@ -6,7 +6,7 @@
 import { Activity } from 'lucide-react';
 import type { FlowDistribution } from '../types';
 import { flowDistributionToArray } from '../types';
-import { FlowStateColors, FlowStateLabels } from '../../flow/types';
+import { FlowStateColors } from '../../flow/types';
 import { Card } from '../../../shared/components/ui/Card';
 
 interface FlowDistributionCardProps {

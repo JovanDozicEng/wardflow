@@ -26,7 +26,7 @@ interface TransitionStateButtonProps {
 
 export const TransitionStateButton = ({
   currentState,
-  encounterId,
+  encounterId: _encounterId,
   onTransition,
   onOverride,
   canOverride = false,

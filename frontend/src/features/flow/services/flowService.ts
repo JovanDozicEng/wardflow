@@ -31,7 +31,7 @@ export const flowService = {
     }
   ): Promise<FlowTimelineResponse> => {
     const response = await api.get<FlowTimelineResponse>(
-      `/api/v1/encounters/${encounterId}/flow`,
+      `/encounters/${encounterId}/flow`,
       {
         params: {
           withActors: options?.withActors ?? false,
@@ -50,7 +50,7 @@ export const flowService = {
    */
   getCurrentState: async (encounterId: string): Promise<CurrentStateResponse> => {
     const response = await api.get<CurrentStateResponse>(
-      `/api/v1/encounters/${encounterId}/flow/current`
+      `/encounters/${encounterId}/flow/current`
     );
     return response.data;
   },
@@ -65,7 +65,7 @@ export const flowService = {
     data: CreateTransitionRequest
   ): Promise<FlowStateTransition> => {
     const response = await api.post<FlowStateTransition>(
-      `/api/v1/encounters/${encounterId}/flow/transitions`,
+      `/encounters/${encounterId}/flow/transitions`,
       data
     );
     return response.data;
@@ -82,7 +82,7 @@ export const flowService = {
     data: OverrideTransitionRequest
   ): Promise<FlowStateTransition> => {
     const response = await api.post<FlowStateTransition>(
-      `/api/v1/encounters/${encounterId}/flow/override`,
+      `/encounters/${encounterId}/flow/override`,
       data
     );
     return response.data;

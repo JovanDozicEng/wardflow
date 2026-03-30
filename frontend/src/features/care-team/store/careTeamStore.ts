@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import type { CareTeamState, AssignRoleRequest, TransferRoleRequest } from '../types/careTeam.types';
 import { careTeamService } from '../services/careTeamService';
 
-export const useCareTeamStore = create<CareTeamState>((set, get) => ({
+export const useCareTeamStore = create<CareTeamState>((set, _get) => ({
   assignments: [],
   history: [],
   handoffs: [],

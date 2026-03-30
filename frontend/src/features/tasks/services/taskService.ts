@@ -21,7 +21,7 @@ export const taskService = {
    * @param filters - Optional filter parameters
    */
   listTasks: async (filters?: TaskFilterParams): Promise<ListTasksResponse> => {
-    const response = await api.get<ListTasksResponse>('/api/v1/tasks', {
+    const response = await api.get<ListTasksResponse>('/tasks', {
       params: filters,
     });
     return response.data;
@@ -32,7 +32,7 @@ export const taskService = {
    * @param taskId - The task ID
    */
   getTask: async (taskId: string): Promise<Task> => {
-    const response = await api.get<Task>(`/api/v1/tasks/${taskId}`);
+    const response = await api.get<Task>(`/tasks/${taskId}`);
     return response.data;
   },
 
@@ -41,7 +41,7 @@ export const taskService = {
    * @param data - Task creation request
    */
   createTask: async (data: CreateTaskRequest): Promise<Task> => {
-    const response = await api.post<Task>('/api/v1/tasks', data);
+    const response = await api.post<Task>('/tasks', data);
     return response.data;
   },
 
@@ -51,7 +51,7 @@ export const taskService = {
    * @param data - Fields to update
    */
   updateTask: async (taskId: string, data: UpdateTaskRequest): Promise<Task> => {
-    const response = await api.patch<Task>(`/api/v1/tasks/${taskId}`, data);
+    const response = await api.patch<Task>(`/tasks/${taskId}`, data);
     return response.data;
   },
 
@@ -61,7 +61,7 @@ export const taskService = {
    * @param data - Assignment request (toOwnerId can be null to unassign)
    */
   assignTask: async (taskId: string, data: AssignTaskRequest): Promise<Task> => {
-    const response = await api.post<Task>(`/api/v1/tasks/${taskId}/assign`, data);
+    const response = await api.post<Task>(`/tasks/${taskId}/assign`, data);
     return response.data;
   },
 
@@ -71,7 +71,7 @@ export const taskService = {
    * @param data - Optional completion note
    */
   completeTask: async (taskId: string, data?: CompleteTaskRequest): Promise<Task> => {
-    const response = await api.post<Task>(`/api/v1/tasks/${taskId}/complete`, data || {});
+    const response = await api.post<Task>(`/tasks/${taskId}/complete`, data || {});
     return response.data;
   },
 
@@ -80,7 +80,7 @@ export const taskService = {
    * @param taskId - The task ID
    */
   getTaskHistory: async (taskId: string): Promise<TaskAssignmentEvent[]> => {
-    const response = await api.get<{ data: TaskAssignmentEvent[] }>(`/api/v1/tasks/${taskId}/history`);
+    const response = await api.get<{ data: TaskAssignmentEvent[] }>(`/tasks/${taskId}/history`);
     return response.data.data;
   },
 };

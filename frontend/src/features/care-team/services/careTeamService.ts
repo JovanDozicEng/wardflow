@@ -4,6 +4,7 @@
  */
 
 import api from '../../../shared/utils/api';
+import type { User } from '../../../shared/types';
 import type { 
   CareTeamAssignment, 
   HandoffNote, 
@@ -25,7 +26,7 @@ export const careTeamService = {
     withDetails = false
   ): Promise<CareTeamAssignment[]> => {
     const response = await api.get<CareTeamResponse>(
-      `/api/v1/encounters/${encounterId}/care-team/assignments`,
+      `/encounters/${encounterId}/care-team/assignments`,
       {
         params: { activeOnly, withDetails },
       }
@@ -33,14 +34,14 @@ export const careTeamService = {
     
     // Backend returns either { assignments } or { members } based on withDetails
     if (withDetails && response.data.members) {
-      // Convert members to assignments with user data
+      // Convert members to assignments with partial user data from API
       return response.data.members.map(m => ({
         ...m.assignment,
         user: {
           id: m.assignment.userId,
           name: m.userName,
           email: m.userEmail,
-        }
+        } as User,
       }));
     }
     
@@ -54,7 +55,7 @@ export const careTeamService = {
    */
   assign: async (encounterId: string, data: AssignRoleRequest): Promise<CareTeamAssignment> => {
     const response = await api.post<CareTeamAssignment>(
-      `/api/v1/encounters/${encounterId}/care-team/assignments`,
+      `/encounters/${encounterId}/care-team/assignments`,
       data
     );
     return response.data;
@@ -67,7 +68,7 @@ export const careTeamService = {
    */
   transfer: async (assignmentId: string, data: TransferRoleRequest): Promise<CareTeamAssignment> => {
     const response = await api.post<CareTeamAssignment>(
-      `/api/v1/care-team/assignments/${assignmentId}/transfer`,
+      `/care-team/assignments/${assignmentId}/transfer`,
       data
     );
     return response.data;
@@ -79,7 +80,7 @@ export const careTeamService = {
    */
   getHistory: async (encounterId: string): Promise<CareTeamAssignment[]> => {
     const response = await api.get<CareTeamResponse>(
-      `/api/v1/encounters/${encounterId}/care-team/assignments`,
+      `/encounters/${encounterId}/care-team/assignments`,
       {
         params: { activeOnly: false },
       }
@@ -93,7 +94,7 @@ export const careTeamService = {
    */
   getHandoffs: async (encounterId: string): Promise<HandoffNote[]> => {
     const response = await api.get<{ data: HandoffNote[] }>(
-      `/api/v1/encounters/${encounterId}/handoffs`
+      `/encounters/${encounterId}/handoffs`
     );
     return response.data.data;
   },

@@ -60,20 +60,20 @@ func (r *Router) setupRoutes(db *database.DB) {
 	r.mux.HandleFunc("GET /health", healthHandler(db))
 	r.mux.HandleFunc("GET /readyz", readyHandler(db))
 	
-	// Auth routes (no auth required for register/login, at root level per OpenAPI spec)
-	r.mux.HandleFunc("POST /auth/register", r.authHandler.Register)
-	r.mux.HandleFunc("POST /auth/login", r.authHandler.Login)
+	// Auth routes - all under /api/v1 for consistency
+	r.mux.HandleFunc("POST /api/v1/auth/register", r.authHandler.Register)
+	r.mux.HandleFunc("POST /api/v1/auth/login", r.authHandler.Login)
 
 	// Protected auth routes (auth required)
-	r.mux.Handle("POST /auth/logout", 
+	r.mux.Handle("POST /api/v1/auth/logout",
 		middleware.AuthMiddleware(r.jwtService)(
 			http.HandlerFunc(r.authHandler.Logout)))
-	
-	r.mux.Handle("GET /auth/me", 
+
+	r.mux.Handle("GET /api/v1/auth/me",
 		middleware.AuthMiddleware(r.jwtService)(
 			http.HandlerFunc(r.authHandler.Me)))
-	
-	r.mux.Handle("POST /auth/change-password", 
+
+	r.mux.Handle("POST /api/v1/auth/change-password",
 		middleware.AuthMiddleware(r.jwtService)(
 			http.HandlerFunc(r.authHandler.ChangePassword)))
 

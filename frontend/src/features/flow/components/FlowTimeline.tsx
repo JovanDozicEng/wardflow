@@ -86,11 +86,6 @@ interface TimelineItemProps {
 }
 
 const TimelineItem = ({ transition, isLatest }: TimelineItemProps) => {
-  const fromStateLabel = transition.fromState
-    ? FlowStateLabels[transition.fromState]
-    : 'Initial';
-  const toStateLabel = FlowStateLabels[transition.toState];
-
   return (
     <div className={`p-4 ${isLatest ? 'bg-blue-50' : ''}`}>
       <div className="flex gap-4">

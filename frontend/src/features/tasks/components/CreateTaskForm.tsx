@@ -4,7 +4,6 @@
  */
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import type { CreateTaskRequest, ScopeType, TaskPriority } from '../types';
 import { TaskPriorityLabels, ScopeTypeLabels } from '../types';
 import { Button } from '../../../shared/components/ui/Button';
