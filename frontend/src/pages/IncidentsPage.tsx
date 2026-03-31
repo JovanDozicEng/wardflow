@@ -18,7 +18,7 @@ export const IncidentsPage = () => {
         title="Safety Incidents"
         subtitle="Quality and safety incident reports"
       />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-4 pb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <IncidentList onSelectIncident={setSelectedIncident} />
         <div>
           {selectedIncident ? (

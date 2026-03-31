@@ -42,7 +42,7 @@ const AssignmentCard = ({
   assignment: CareTeamAssignment;
   handoffs: HandoffNote[];
 }) => {
-  const relatedHandoff = handoffs.find((h) => h.assignmentId === assignment.id);
+  const relatedHandoff = (handoffs ?? []).find((h) => h.assignmentId === assignment.id);
   const isActive = !assignment.endsAt;
   const roleLabel = ROLE_LABELS[assignment.roleType] ?? assignment.roleType;
 
@@ -133,7 +133,7 @@ export const AssignmentHistory = ({ encounterId }: AssignmentHistoryProps) => {
   }
 
   // Sort newest first
-  const sorted = [...history].sort(
+  const sorted = [...(history ?? [])].sort(
     (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
   );
 

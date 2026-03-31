@@ -34,15 +34,16 @@ export const careTeamService = {
     
     // Backend returns either { assignments } or { members } based on withDetails
     if (withDetails && response.data.members) {
-      // Convert members to assignments with partial user data from API
-      return response.data.members.map(m => ({
-        ...m.assignment,
-        user: {
-          id: m.assignment.userId,
-          name: m.userName,
-          email: m.userEmail,
-        } as User,
-      }));
+      return response.data.members
+        .filter((m: any) => m.assignment)
+        .map((m: any) => ({
+          ...m.assignment,
+          user: {
+            id: m.assignment.userId,
+            name: m.userName,
+            email: m.userEmail,
+          } as User,
+        }));
     }
     
     return response.data.assignments || [];
@@ -93,9 +94,9 @@ export const careTeamService = {
    * @param encounterId - The encounter ID
    */
   getHandoffs: async (encounterId: string): Promise<HandoffNote[]> => {
-    const response = await api.get<{ data: HandoffNote[] }>(
+    const response = await api.get<{ handoffs: HandoffNote[]; data?: HandoffNote[] }>(
       `/encounters/${encounterId}/handoffs`
     );
-    return response.data.data;
+    return response.data.handoffs ?? response.data.data ?? [];
   },
 };
