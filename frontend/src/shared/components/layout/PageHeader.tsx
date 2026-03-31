@@ -5,6 +5,7 @@
  * TODO: Add subtitle/description
  */
 
+import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
@@ -31,9 +32,9 @@ export const PageHeader = ({
           {breadcrumbs.map((crumb, index) => (
             <span key={index}>
               {crumb.href ? (
-                <a href={crumb.href} className="hover:text-gray-700">
+                <Link to={crumb.href} className="hover:text-gray-700">
                   {crumb.label}
-                </a>
+                </Link>
               ) : (
                 <span>{crumb.label}</span>
               )}

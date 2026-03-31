@@ -34,25 +34,9 @@ export const CareTeamList = ({
     }
   }, [encounterId]);
 
-  if (isLoading && assignments.length === 0) {
-    return (
-      <div className="flex justify-center py-6">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
-        {error}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
-      {/* Header */}
+      {/* Header — always visible */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
           Care Team ({assignments.length})
@@ -71,15 +55,33 @@ export const CareTeamList = ({
               onClick={() => setShowAssignForm(true)}
               className="text-xs px-2 py-1"
             >
-              + Assign
+              + Assign Member
             </Button>
           )}
         </div>
       </div>
 
-      {/* Member list */}
-      {assignments.length === 0 ? (
-        <p className="text-sm text-gray-500 text-center py-4">No active care team members.</p>
+      {/* Body */}
+      {isLoading && assignments.length === 0 ? (
+        <div className="flex justify-center py-6">
+          <Spinner />
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+          {error}
+        </div>
+      ) : assignments.length === 0 ? (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+          <p className="text-sm text-gray-500">No active care team members.</p>
+          {canAssign && (
+            <button
+              onClick={() => setShowAssignForm(true)}
+              className="mt-2 text-sm text-blue-600 hover:underline"
+            >
+              Assign the first member →
+            </button>
+          )}
+        </div>
       ) : (
         <div className="space-y-2">
           {assignments.map((a) => (

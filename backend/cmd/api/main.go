@@ -10,9 +10,12 @@ import (
 "syscall"
 "time"
 
+"github.com/wardflow/backend/internal/bed"
 "github.com/wardflow/backend/internal/careteam"
 "github.com/wardflow/backend/internal/config"
 "github.com/wardflow/backend/internal/consult"
+"github.com/wardflow/backend/internal/department"
+"github.com/wardflow/backend/internal/discharge"
 "github.com/wardflow/backend/internal/encounter"
 "github.com/wardflow/backend/internal/exception"
 "github.com/wardflow/backend/internal/flow"
@@ -21,8 +24,8 @@ import (
 "github.com/wardflow/backend/internal/patient"
 "github.com/wardflow/backend/internal/router"
 "github.com/wardflow/backend/internal/task"
+"github.com/wardflow/backend/internal/transport"
 "github.com/wardflow/backend/internal/unit"
-"github.com/wardflow/backend/internal/department"
 "github.com/wardflow/backend/pkg/auth"
 "github.com/wardflow/backend/pkg/database"
 "github.com/wardflow/backend/pkg/logger"
@@ -142,6 +145,14 @@ if err := db.AutoMigrate(
 &exception.ExceptionEvent{},
 &incident.Incident{},
 &incident.IncidentStatusEvent{},
+// Operations (Developer B)
+&bed.Bed{},
+&bed.BedStatusEvent{},
+&bed.BedRequest{},
+&transport.TransportRequest{},
+&transport.TransportChangeEvent{},
+&discharge.DischargeChecklist{},
+&discharge.DischargeChecklistItem{},
 ); err != nil {
 return fmt.Errorf("failed to migrate models: %w", err)
 }

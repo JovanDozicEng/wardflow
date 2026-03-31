@@ -11,6 +11,7 @@ import { useIncidentActions } from '../hooks/useIncidentActions';
 import { usePermissions } from '@/features/auth/hooks/usePermissions';
 import type { Incident, UpdateIncidentStatusRequest } from '../types/incident.types';
 import { Layout } from '@/shared/components/layout/Layout';
+import { PageHeader } from '@/shared/components/layout/PageHeader';
 
 export const IncidentReviewPage = () => {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -18,7 +19,6 @@ export const IncidentReviewPage = () => {
   const { updateStatus, loading } = useIncidentActions();
   const { hasAnyRole } = usePermissions();
 
-  // Check if user has permission
   const canReviewIncidents = hasAnyRole(['quality_safety', 'admin']);
 
   const handleReview = (incident: Incident) => {
@@ -34,14 +34,11 @@ export const IncidentReviewPage = () => {
     try {
       await updateStatus(selectedIncident.id, data);
       setShowStatusModal(false);
-      // Refresh selected incident
       setSelectedIncident((prev) =>
         prev ? { ...prev, status: data.status } : null
       );
-      // TODO: Show success toast
       console.log('Status updated successfully');
     } catch (err) {
-      // TODO: Show error toast
       console.error('Failed to update status:', err);
       throw err;
     }
@@ -50,40 +47,35 @@ export const IncidentReviewPage = () => {
   if (!canReviewIncidents) {
     return (
       <Layout>
-      <div className="max-w-6xl mx-auto px-4 py-8">
+        <PageHeader title="Review Incidents" subtitle="Quality and safety incident review" />
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
           <h2 className="text-xl font-semibold text-red-900 mb-2">Access Denied</h2>
           <p className="text-red-800">
             You do not have permission to review incidents. This page is restricted to quality_safety and admin roles.
           </p>
         </div>
-      </div>
       </Layout>
     );
   }
 
   return (
     <Layout>
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Incident Review</h1>
-        <p className="text-gray-600 mt-1">Review and manage reported safety incidents</p>
-      </div>
+      <PageHeader
+        title="Incident Review"
+        subtitle="Review and manage reported safety incidents"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Review Queue */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Review Queue</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Review Queue</h2>
           <IncidentReviewQueue onReview={handleReview} />
         </div>
 
-        {/* Right: Detail View */}
         <div>
           {selectedIncident ? (
             <>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Incident Details</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Incident Details</h2>
                 <Button
                   variant="primary"
                   size="sm"
@@ -104,7 +96,6 @@ export const IncidentReviewPage = () => {
         </div>
       </div>
 
-      {/* Status Update Modal */}
       <StatusUpdateModal
         isOpen={showStatusModal}
         onClose={() => setShowStatusModal(false)}
@@ -112,7 +103,6 @@ export const IncidentReviewPage = () => {
         incident={selectedIncident}
         loading={loading}
       />
-    </div>
     </Layout>
   );
 };

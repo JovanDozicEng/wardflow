@@ -193,12 +193,9 @@ func (s *Service) GetCareTeamWithDetails(ctx context.Context, encounterID string
 		}
 
 		members = append(members, CareTeamMember{
-			AssignmentID: assignment.ID,
-			UserID:       user.ID,
-			UserName:     user.Name,
-			UserEmail:    user.Email,
-			RoleType:     assignment.RoleType,
-			StartsAt:     assignment.StartsAt,
+			Assignment: assignment,
+			UserName:   user.Name,
+			UserEmail:  user.Email,
 		})
 	}
 

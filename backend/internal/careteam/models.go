@@ -100,12 +100,9 @@ type ListHandoffsResponse struct {
 
 // CareTeamMember represents an active care team member with user details populated
 type CareTeamMember struct {
-	AssignmentID string    `json:"assignmentId"`
-	UserID       string    `json:"userId"`
-	UserName     string    `json:"userName"`
-	UserEmail    string    `json:"userEmail"`
-	RoleType     RoleType  `json:"roleType"`
-	StartsAt     time.Time `json:"startsAt"`
+	Assignment CareTeamAssignment `json:"assignment"`
+	UserName   string             `json:"userName"`
+	UserEmail  string             `json:"userEmail"`
 }
 
 // CareTeamResponse is the response for getting the current care team

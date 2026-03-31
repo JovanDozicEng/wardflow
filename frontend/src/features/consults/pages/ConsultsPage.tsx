@@ -11,6 +11,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { useConsultActions } from '../hooks/useConsultActions';
 import { usePermissions } from '@/features/auth/hooks/usePermissions';
 import { Layout } from '@/shared/components/layout/Layout';
+import { PageHeader } from '@/shared/components/layout/PageHeader';
 
 export const ConsultsPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -89,25 +90,22 @@ export const ConsultsPage = () => {
 
   return (
     <Layout>
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Consults</h1>
-          <p className="text-gray-600 mt-1">Manage consultation requests</p>
-        </div>
-        {canCreateConsults && (
-          <Button
-            variant="primary"
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            + New Consult
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Consults"
+        subtitle="Manage consultation requests"
+        actions={
+          canCreateConsults ? (
+            <Button
+              variant="primary"
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              + New Consult
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {/* Consult Inbox */}
       <ConsultInbox
         onAccept={handleAccept}
         onDecline={handleDecline}
@@ -116,7 +114,6 @@ export const ConsultsPage = () => {
         actionLoading={loading}
       />
 
-      {/* Create Modal */}
       <ConsultForm
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -126,7 +123,6 @@ export const ConsultsPage = () => {
         loading={loading}
       />
 
-      {/* Decline Modal */}
       <DeclineModal
         isOpen={declineConsultId !== null}
         onClose={() => setDeclineConsultId(null)}
@@ -134,14 +130,12 @@ export const ConsultsPage = () => {
         loading={loading}
       />
 
-      {/* Redirect Modal */}
       <RedirectModal
         isOpen={redirectConsultId !== null}
         onClose={() => setRedirectConsultId(null)}
         onSubmit={handleRedirectSubmit}
         loading={loading}
       />
-    </div>
     </Layout>
   );
 };

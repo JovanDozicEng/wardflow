@@ -3,10 +3,12 @@ package router
 import (
 "net/http"
 
+"github.com/wardflow/backend/internal/bed"
 "github.com/wardflow/backend/internal/careteam"
 "github.com/wardflow/backend/internal/consult"
 "github.com/wardflow/backend/internal/dashboard"
 "github.com/wardflow/backend/internal/department"
+"github.com/wardflow/backend/internal/discharge"
 "github.com/wardflow/backend/internal/encounter"
 "github.com/wardflow/backend/internal/exception"
 "github.com/wardflow/backend/internal/flow"
@@ -15,6 +17,7 @@ import (
 "github.com/wardflow/backend/internal/middleware"
 "github.com/wardflow/backend/internal/patient"
 "github.com/wardflow/backend/internal/task"
+"github.com/wardflow/backend/internal/transport"
 "github.com/wardflow/backend/internal/unit"
 "github.com/wardflow/backend/pkg/auth"
 "github.com/wardflow/backend/pkg/database"
@@ -122,21 +125,41 @@ incidentService := incident.NewService(incidentRepo)
 incidentHandler := incident.NewHandler(incidentService, db)
 incident.RegisterRoutes(r.mux, incidentHandler, r.jwtService)
 
+// Operations routes (Developer B)
+bedHandler := bed.NewHandler(db)
+bed.RegisterRoutes(r.mux, bedHandler, r.jwtService)
+
+transportHandler := transport.NewHandler(db)
+transport.RegisterRoutes(r.mux, transportHandler, r.jwtService)
+
+dischargeHandler := discharge.NewHandler(db)
+discharge.RegisterRoutes(r.mux, dischargeHandler, r.jwtService)
+
 // Users — searchable list for care team assignment
 usersHandler := handler.NewUsersHandler(db)
 r.mux.Handle("GET /api/v1/users",
 	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(usersHandler.ListUsers)),
 )
+
+// Admin staff management
+adminStaffHandler := handler.NewAdminStaffHandler(db)
+r.mux.Handle("GET /api/v1/admin/staff",
+	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(adminStaffHandler.ListStaff)),
+)
+r.mux.Handle("PATCH /api/v1/admin/staff/{userId}",
+	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(adminStaffHandler.UpdateStaff)),
+)
 }
 
 func healthHandler(db *database.DB) http.HandlerFunc {
 return func(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodGet {
-http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+w.Header().Set("Content-Type", "application/json")
+
+// HEAD requests (from wget --spider healthchecks) get headers only
+if r.Method == http.MethodHead {
+w.WriteHeader(http.StatusOK)
 return
 }
-
-w.Header().Set("Content-Type", "application/json")
 
 dbHealth, err := db.HealthCheck(r.Context())
 if err != nil {
