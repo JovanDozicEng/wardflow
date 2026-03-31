@@ -11,19 +11,72 @@ Inpatient/ED care-coordination system designed to reduce missed actions during h
 
 ## Quick Start
 
-### Backend (Go API)
+### Full Stack with Podman (Recommended)
+
+Run all services (PostgreSQL, backend API, frontend) with a single command:
 
 ```bash
 cd backend
-podman compose up -d
+podman compose up -d --build
 ```
+
+| Service  | URL                   |
+|----------|-----------------------|
+| Frontend | http://localhost:3000 |
+| Backend  | http://localhost:8080 |
+| Database | localhost:5432        |
+
+> **Note:** The first run downloads images and compiles the Go binary — allow ~2 minutes for the backend to become healthy.
+
+**View logs:**
+```bash
+podman compose logs -f              # all services
+podman compose logs -f backend      # backend only
+podman compose logs -f frontend     # nginx/frontend only
+```
+
+**Stop all services:**
+```bash
+podman compose down
+```
+
+**Rebuild after code changes:**
+```bash
+podman compose up -d --build
+```
+
+**Reset database (removes all data):**
+```bash
+podman compose down -v
+podman compose up -d --build
+```
+
+---
+
+### Alternative: Docker
+
+The same commands work with `docker compose` instead of `podman compose`:
+
+```bash
+cd backend
+docker compose up -d --build
+```
+
+---
+
+### Local Development (without containers)
+
+**Backend:**
+```bash
+cd backend
+go run cmd/api/main.go
+```
+
+Requires a running PostgreSQL instance. Configure via environment variables or a `.env` file in `backend/`.
 
 API available at `http://localhost:8080`
 
-See [backend/AUTH_SETUP.md](backend/AUTH_SETUP.md) for authentication details.
-
-### Frontend (React)
-
+**Frontend:**
 ```bash
 cd frontend
 npm install
@@ -32,148 +85,175 @@ npm run dev
 
 UI available at `http://localhost:5173`
 
-See [frontend/SETUP.md](frontend/SETUP.md) for development guide.
+> When running the frontend locally against a containerized backend, set `VITE_API_BASE_URL=http://localhost:8080/api/v1` in `frontend/.env`.
+
+See [backend/AUTH_SETUP.md](backend/AUTH_SETUP.md) for authentication details.
+
+---
+
+## Default Admin Account
+
+On first run, register a user via `POST /api/v1/auth/register` or the `/register` page, then update the role to `admin` directly in the database or via the Staff Management page once logged in.
+
+---
 
 ## Features
 
 ### Implemented ✅
 
 - **Authentication & Authorization**
-  - JWT-based auth with 8 RBAC roles
+  - JWT-based auth with 8 RBAC roles (nurse, provider, charge_nurse, operations, consult, transport, quality_safety, admin)
   - User registration and login
-  - Password management
-  - Unit/Department visibility boundaries
-  
-- **Database Layer**
-  - PostgreSQL connection with GORM
-  - Connection pooling
-  - Health checks
-  - Audit-ready schema
+  - Unit/Department visibility boundaries enforced at API layer
 
-- **Frontend Foundation**
-  - React 18 with TypeScript
-  - Tailwind CSS styling
-  - Vite build system
-  - Modern component architecture
+- **Care Team Management**
+  - Per-encounter care team assignment with role types
+  - Structured handoff notes (patient status, pending tasks, priorities)
+  - Handoff history and transfer tracking
 
-### Planned 🚧
+- **Patient Flow Tracking**
+  - Immutable flow state timeline per encounter
+  - Audit trail with actor, timestamp, and reason
 
-1. Care team assignment per encounter
-2. Patient flow tracking
-3. Clinical task board
-4. Inter-department consult requests
-5. Bed management
-6. Transport requests
-7. Discharge planning checklist
-8. Exception workflows
-9. Daily huddle dashboard
-10. Quality/safety incident logging
+- **Clinical Task Board**
+  - Tasks scoped to encounter, patient, or unit
+  - Status lifecycle: open → in_progress → completed / escalated / cancelled
+
+- **Consult Requests**
+  - Accept / decline / redirect / complete workflows
+  - Role-scoped consult inbox
+
+- **Bed Management**
+  - Status tracking: available, occupied, blocked, cleaning, maintenance
+  - Capability tags and bed request matching
+  - Concurrent assignment protection via DB-level row locking
+
+- **Transport Requests**
+  - Full lifecycle with immutable change events
+  - Unit-scoped RBAC
+
+- **Discharge Planning**
+  - Structured checklist per discharge type
+  - Required vs optional items with waiver support
+
+- **Exception & Incident Logging**
+  - Immutable event log (draft → finalized → corrected)
+  - Quality/Safety incident review queue
+
+- **Administration**
+  - Department and Unit management
+  - Staff management — assign roles, units, and departments per user
+  - Inactive user toggle (blocks login without deleting records)
+
+---
 
 ## Project Structure
 
 ```
 wardflow/
-├── backend/          # Go API server
-│   ├── cmd/api/      # Application entrypoint
-│   ├── internal/     # Private packages
-│   │   ├── config/   # Configuration
-│   │   ├── handler/  # HTTP handlers
-│   │   ├── middleware/ # Auth, RBAC, logging
-│   │   ├── models/   # Domain models
-│   │   └── router/   # Route setup
-│   └── pkg/          # Public packages
-│       ├── auth/     # JWT & auth service
-│       ├── database/ # DB connection
-│       └── logger/   # Logging utilities
-├── frontend/         # React UI
+├── backend/                  # Go API server
+│   ├── cmd/api/              # Application entrypoint
+│   ├── internal/             # Domain packages
+│   │   ├── bed/              # Bed management
+│   │   ├── careteam/         # Care team & handoffs
+│   │   ├── consult/          # Consult requests
+│   │   ├── discharge/        # Discharge checklists
+│   │   ├── encounter/        # Encounter management
+│   │   ├── exception/        # Exception events
+│   │   ├── flow/             # Flow state transitions
+│   │   ├── handler/          # Shared HTTP handlers
+│   │   ├── incident/         # Safety incidents
+│   │   ├── middleware/        # Auth, RBAC, logging
+│   │   ├── models/           # Shared domain models
+│   │   ├── router/           # Route registration
+│   │   ├── task/             # Clinical tasks
+│   │   └── transport/        # Transport requests
+│   ├── pkg/                  # Public packages
+│   │   ├── auth/             # JWT & auth service
+│   │   ├── database/         # DB connection & health
+│   │   └── logger/           # Structured logging
+│   ├── docker-compose.yml    # Full stack compose file
+│   └── Dockerfile            # Backend container
+├── frontend/                 # React SPA
 │   ├── src/
-│   │   ├── App.tsx   # Root component
-│   │   ├── main.tsx  # Entry point
-│   │   └── index.css # Tailwind styles
-│   └── public/       # Static assets
-└── docs/             # Requirements & specs
+│   │   ├── features/         # Domain feature modules
+│   │   ├── pages/            # Route-level pages
+│   │   └── shared/           # Shared UI & utilities
+│   ├── Dockerfile            # Nginx container (multi-stage)
+│   └── nginx.conf            # SPA fallback + API proxy
+└── docs/                     # Requirements & specs
 ```
 
-## Documentation
-
-- [Backend Setup](backend/README.md)
-- [Database Guide](backend/DATABASE.md)
-- [Auth Implementation](backend/AUTH_SETUP.md)
-- [Podman Commands](backend/PODMAN.md)
-- [Frontend Setup](frontend/SETUP.md)
-- [API Instructions](.github/copilot-instructions.md)
-- [Requirements](docs/req-and-spec-pack.md)
-- [Task Description](docs/task-description.md)
-
-## Tech Stack
-
-### Backend
-- Go 1.25
-- PostgreSQL 16
-- GORM ORM
-- JWT authentication
-- bcrypt password hashing
-- Podman containers
-
-### Frontend
-- React 18.3
-- TypeScript 5.x
-- Tailwind CSS 4.2
-- Vite 8.x
-- Modern hooks & functional components
+---
 
 ## Development
 
-### Backend Development
+### Backend
 
 ```bash
 cd backend
 
-# Local development
+# Local run
 go run cmd/api/main.go
 
-# With containers
-podman compose up -d
-podman logs -f wardflow-backend
-
-# Run tests
+# Tests
 go test ./...
 
-# Build
+# Build binary
 go build -o bin/wardflow-api cmd/api/main.go
+
+# Container (with live logs)
+podman compose up -d --build
+podman compose logs -f backend
 ```
 
-### Frontend Development
+### Frontend
 
 ```bash
 cd frontend
 
-# Development server
+# Development server (with HMR)
 npm run dev
 
-# Production build
+# Type check + production build
 npm run build
-
-# Preview production
-npm run preview
 
 # Lint
 npm run lint
 ```
 
+---
+
 ## API Endpoints
 
-### Authentication
-- `POST /auth/register` - User registration
-- `POST /auth/login` - User login
-- `POST /auth/logout` - User logout
-- `GET /auth/me` - Get current user
-- `POST /auth/change-password` - Change password
+### Authentication (`/api/v1/auth/`)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/auth/register` | Register new user |
+| POST | `/api/v1/auth/login` | Login, returns JWT |
+| POST | `/api/v1/auth/logout` | Invalidate session |
+| GET  | `/api/v1/auth/me` | Get current user |
+| POST | `/api/v1/auth/change-password` | Change password |
+
+### Core Resources (`/api/v1/`)
+| Resource | Endpoints |
+|----------|-----------|
+| Encounters | `GET/POST /encounters`, `GET/PATCH /encounters/:id` |
+| Care Team | `GET/POST /encounters/:id/care-team`, `PATCH /care-team/assignments/:id/transfer` |
+| Tasks | `GET/POST /tasks`, `PATCH /tasks/:id` |
+| Consults | `GET/POST /consults`, `PATCH /consults/:id/accept\|decline\|complete` |
+| Beds | `GET/POST /beds`, `PATCH /beds/:id/status`, `POST /bed-requests` |
+| Transport | `GET/POST /transport`, `PATCH /transport/:id` |
+| Discharge | `POST /discharge/init`, `GET /discharge/:encounterId`, `PATCH /discharge/items/:id` |
+| Incidents | `GET/POST /incidents`, `PATCH /incidents/:id/status` |
+| Exceptions | `GET/POST /exceptions`, `PATCH /exceptions/:id/finalize\|correct` |
 
 ### Health
-- `GET /health` - API health check
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | API + database health check |
 
-See [AUTH_SETUP.md](backend/AUTH_SETUP.md) for detailed API documentation.
+---
 
 ## Environment Variables
 
@@ -186,28 +266,49 @@ DB_PORT=5432
 DB_USER=wardflow
 DB_PASSWORD=wardflow_dev_password
 DB_NAME=wardflow
-JWT_SECRET=your-secret-key
+DB_SSLMODE=disable
+JWT_SECRET=your-secret-change-in-production
+JWT_EXPIRATION_HOURS=24
 ```
 
 ### Frontend
 ```bash
-VITE_API_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:8080/api/v1
 ```
 
-## Contributing
-
-1. Follow documented patterns in `.github/copilot-instructions.md`
-2. Check `/docs` for architecture requirements
-3. Use backend/frontend agent configurations
-4. Maintain >80% test coverage for core logic
-5. Follow Go best practices (backend)
-6. Follow React best practices (frontend)
-
-## License
-
-Proprietary - WardFlow Care Coordination System
+> In Docker/Podman, the frontend container proxies `/api/` and `/auth/` to the backend via nginx — `VITE_API_BASE_URL` is not needed.
 
 ---
 
-**Status**: Foundation complete - Backend API with auth + Frontend scaffold ready  
-**Next**: Implement care team assignment and patient flow tracking
+## Documentation
+
+- [Backend Auth Setup](backend/AUTH_SETUP.md)
+- [Database Guide](backend/DATABASE.md)
+- [Podman Commands](backend/PODMAN.md)
+- [Frontend Setup](frontend/SETUP.md)
+- [Requirements](docs/req-and-spec-pack.md)
+- [Task Description](docs/task-description.md)
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Go 1.25, net/http (stdlib router), GORM |
+| Database | PostgreSQL 16, JSONB, uuid-ossp |
+| Auth | JWT (HS256), bcrypt |
+| Frontend | React 18, TypeScript 5, Vite 8 |
+| Styling | Tailwind CSS 4 |
+| State | Zustand, React Query patterns |
+| Containers | Podman / Docker, nginx |
+
+---
+
+## License
+
+Proprietary — WardFlow Care Coordination System
+
+---
+
+**Status**: MVP feature-complete · All 10 modules implemented · Full-stack containerized
