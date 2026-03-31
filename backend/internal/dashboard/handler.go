@@ -5,18 +5,17 @@ import (
 
 	"github.com/wardflow/backend/internal/httputil"
 	"github.com/wardflow/backend/pkg/auth"
-	"github.com/wardflow/backend/pkg/database"
 )
 
 // Handler handles HTTP requests for dashboard
 type Handler struct {
-	service *Service
+	service Service
 }
 
 // NewHandler creates a new dashboard handler
-func NewHandler(db *database.DB) *Handler {
+func NewHandler(service Service) *Handler {
 	return &Handler{
-		service: NewService(db),
+		service: service,
 	}
 }
 

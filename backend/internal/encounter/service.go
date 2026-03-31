@@ -6,18 +6,26 @@ import (
 	"time"
 )
 
-// Service handles encounter business logic
-type Service struct {
-	repo *Repository
+// Service defines the interface for encounter business logic
+type Service interface {
+	Create(ctx context.Context, req *CreateEncounterRequest, byUserID string) (*Encounter, error)
+	GetByID(ctx context.Context, id string) (*Encounter, error)
+	List(ctx context.Context, f ListEncountersFilter) ([]*Encounter, int64, error)
+	Update(ctx context.Context, id string, req *UpdateEncounterRequest, byUserID string) (*Encounter, error)
+}
+
+// service handles encounter business logic
+type service struct {
+	repo Repository
 }
 
 // NewService creates a new encounter service
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository) Service {
+	return &service{repo: repo}
 }
 
 // Create creates a new encounter with validation
-func (s *Service) Create(ctx context.Context, req *CreateEncounterRequest, byUserID string) (*Encounter, error) {
+func (s *service) Create(ctx context.Context, req *CreateEncounterRequest, byUserID string) (*Encounter, error) {
 	// Validate required fields
 	if req.PatientID == "" {
 		return nil, errors.New("patientId is required")
@@ -53,17 +61,17 @@ func (s *Service) Create(ctx context.Context, req *CreateEncounterRequest, byUse
 }
 
 // GetByID retrieves an encounter by ID
-func (s *Service) GetByID(ctx context.Context, id string) (*Encounter, error) {
+func (s *service) GetByID(ctx context.Context, id string) (*Encounter, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
 // List retrieves encounters based on filters
-func (s *Service) List(ctx context.Context, f ListEncountersFilter) ([]*Encounter, int64, error) {
+func (s *service) List(ctx context.Context, f ListEncountersFilter) ([]*Encounter, int64, error) {
 	return s.repo.List(ctx, f)
 }
 
 // Update updates an encounter with validation
-func (s *Service) Update(ctx context.Context, id string, req *UpdateEncounterRequest, byUserID string) (*Encounter, error) {
+func (s *service) Update(ctx context.Context, id string, req *UpdateEncounterRequest, byUserID string) (*Encounter, error) {
 	// Fetch existing encounter
 	encounter, err := s.repo.GetByID(ctx, id)
 	if err != nil {

@@ -7,18 +7,28 @@ import (
 	"time"
 )
 
-// Service handles exception event business logic
-type Service struct {
-	repo *Repository
+// Service defines the interface for exception event business logic
+type Service interface {
+	Create(ctx context.Context, req *CreateExceptionRequest, byUserID string) (*ExceptionEvent, error)
+	Update(ctx context.Context, id string, req *UpdateExceptionRequest, byUserID string) (*ExceptionEvent, error)
+	Finalize(ctx context.Context, id string, byUserID string) (*ExceptionEvent, error)
+	Correct(ctx context.Context, id string, req *CorrectExceptionRequest, byUserID string) (*ExceptionEvent, error)
+	List(ctx context.Context, f ListExceptionsFilter) ([]*ExceptionEvent, int64, error)
+	GetByID(ctx context.Context, id string) (*ExceptionEvent, error)
+}
+
+// service handles exception event business logic
+type service struct {
+	repo Repository
 }
 
 // NewService creates a new exception event service
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository) Service {
+	return &service{repo: repo}
 }
 
 // Create creates a new exception event with validation
-func (s *Service) Create(ctx context.Context, req *CreateExceptionRequest, byUserID string) (*ExceptionEvent, error) {
+func (s *service) Create(ctx context.Context, req *CreateExceptionRequest, byUserID string) (*ExceptionEvent, error) {
 	// Validate required fields
 	if req.EncounterID == "" {
 		return nil, errors.New("encounterId is required")
@@ -54,7 +64,7 @@ func (s *Service) Create(ctx context.Context, req *CreateExceptionRequest, byUse
 }
 
 // Update updates a draft exception event
-func (s *Service) Update(ctx context.Context, id string, req *UpdateExceptionRequest, byUserID string) (*ExceptionEvent, error) {
+func (s *service) Update(ctx context.Context, id string, req *UpdateExceptionRequest, byUserID string) (*ExceptionEvent, error) {
 	exception, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -81,7 +91,7 @@ func (s *Service) Update(ctx context.Context, id string, req *UpdateExceptionReq
 }
 
 // Finalize finalizes a draft exception event
-func (s *Service) Finalize(ctx context.Context, id string, byUserID string) (*ExceptionEvent, error) {
+func (s *service) Finalize(ctx context.Context, id string, byUserID string) (*ExceptionEvent, error) {
 	exception, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -105,7 +115,7 @@ func (s *Service) Finalize(ctx context.Context, id string, byUserID string) (*Ex
 }
 
 // Correct creates a corrected version of a finalized exception event (IMMUTABILITY PATTERN)
-func (s *Service) Correct(ctx context.Context, id string, req *CorrectExceptionRequest, byUserID string) (*ExceptionEvent, error) {
+func (s *service) Correct(ctx context.Context, id string, req *CorrectExceptionRequest, byUserID string) (*ExceptionEvent, error) {
 	originalException, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -159,11 +169,11 @@ func (s *Service) Correct(ctx context.Context, id string, req *CorrectExceptionR
 }
 
 // List retrieves exception events based on filters
-func (s *Service) List(ctx context.Context, f ListExceptionsFilter) ([]*ExceptionEvent, int64, error) {
+func (s *service) List(ctx context.Context, f ListExceptionsFilter) ([]*ExceptionEvent, int64, error) {
 	return s.repo.List(ctx, f)
 }
 
 // GetByID retrieves an exception event by ID
-func (s *Service) GetByID(ctx context.Context, id string) (*ExceptionEvent, error) {
+func (s *service) GetByID(ctx context.Context, id string) (*ExceptionEvent, error) {
 	return s.repo.GetByID(ctx, id)
 }

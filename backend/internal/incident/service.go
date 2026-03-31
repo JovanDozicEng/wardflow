@@ -7,18 +7,27 @@ import (
 	"time"
 )
 
-// Service handles incident business logic
-type Service struct {
-	repo *Repository
+// Service defines the interface for incident business logic
+type Service interface {
+	Create(ctx context.Context, req *CreateIncidentRequest, byUserID string) (*Incident, error)
+	GetByID(ctx context.Context, id string) (*Incident, error)
+	List(ctx context.Context, f ListIncidentsFilter) ([]*Incident, int64, error)
+	UpdateStatus(ctx context.Context, id string, req *UpdateIncidentStatusRequest, byUserID string) (*Incident, error)
+	GetStatusHistory(ctx context.Context, incidentID string) ([]*IncidentStatusEvent, error)
+}
+
+// service handles incident business logic
+type service struct {
+	repo Repository
 }
 
 // NewService creates a new incident service
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository) Service {
+	return &service{repo: repo}
 }
 
 // Create creates a new incident with validation
-func (s *Service) Create(ctx context.Context, req *CreateIncidentRequest, byUserID string) (*Incident, error) {
+func (s *service) Create(ctx context.Context, req *CreateIncidentRequest, byUserID string) (*Incident, error) {
 	// Validate required fields
 	if req.Type == "" {
 		return nil, errors.New("type is required")
@@ -58,17 +67,17 @@ func (s *Service) Create(ctx context.Context, req *CreateIncidentRequest, byUser
 }
 
 // GetByID retrieves an incident by ID
-func (s *Service) GetByID(ctx context.Context, id string) (*Incident, error) {
+func (s *service) GetByID(ctx context.Context, id string) (*Incident, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
 // List retrieves incidents based on filters
-func (s *Service) List(ctx context.Context, f ListIncidentsFilter) ([]*Incident, int64, error) {
+func (s *service) List(ctx context.Context, f ListIncidentsFilter) ([]*Incident, int64, error) {
 	return s.repo.List(ctx, f)
 }
 
 // UpdateStatus updates the status of an incident and creates a status event
-func (s *Service) UpdateStatus(ctx context.Context, id string, req *UpdateIncidentStatusRequest, byUserID string) (*Incident, error) {
+func (s *service) UpdateStatus(ctx context.Context, id string, req *UpdateIncidentStatusRequest, byUserID string) (*Incident, error) {
 	// Get existing incident
 	incident, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -107,7 +116,7 @@ func (s *Service) UpdateStatus(ctx context.Context, id string, req *UpdateIncide
 }
 
 // GetStatusHistory retrieves the status history for an incident
-func (s *Service) GetStatusHistory(ctx context.Context, incidentID string) ([]*IncidentStatusEvent, error) {
+func (s *service) GetStatusHistory(ctx context.Context, incidentID string) ([]*IncidentStatusEvent, error) {
 	// Verify incident exists
 	_, err := s.repo.GetByID(ctx, incidentID)
 	if err != nil {

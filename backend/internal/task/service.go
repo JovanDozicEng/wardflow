@@ -11,22 +11,34 @@ import (
 	"github.com/wardflow/backend/pkg/database"
 )
 
-// Service handles task business logic
-type Service struct {
-	repo *Repository
+// Service defines the business logic interface for task management
+type Service interface {
+	CreateTask(ctx context.Context, r *http.Request, req CreateTaskRequest, currentUserID string) (*Task, error)
+	UpdateTask(ctx context.Context, r *http.Request, taskID string, req UpdateTaskRequest, currentUserID string) (*Task, error)
+	AssignTask(ctx context.Context, r *http.Request, taskID string, req AssignTaskRequest, currentUserID string, currentUserRole models.Role) (*Task, error)
+	CompleteTask(ctx context.Context, r *http.Request, taskID string, req CompleteTaskRequest, currentUserID string, currentUserRole models.Role) (*Task, error)
+	ListTasks(ctx context.Context, filter ListTasksFilter) ([]Task, int64, error)
+	GetTaskHistory(ctx context.Context, taskID string, limit, offset int) ([]TaskAssignmentEvent, int64, error)
+	GetTaskByID(ctx context.Context, taskID string) (*Task, error)
+	GetTasksWithOwnerDetails(ctx context.Context, filter ListTasksFilter) ([]TaskWithOwner, int64, error)
+}
+
+// service handles task business logic
+type service struct {
+	repo Repository
 	db   *database.DB
 }
 
 // NewService creates a new task service
-func NewService(db *database.DB) *Service {
-	return &Service{
-		repo: NewRepository(db),
+func NewService(repo Repository, db *database.DB) Service {
+	return &service{
+		repo: repo,
 		db:   db,
 	}
 }
 
 // CreateTask creates a new task with optional initial assignment
-func (s *Service) CreateTask(ctx context.Context, r *http.Request, req CreateTaskRequest, currentUserID string) (*Task, error) {
+func (s *service) CreateTask(ctx context.Context, r *http.Request, req CreateTaskRequest, currentUserID string) (*Task, error) {
 	// Set default priority if not provided
 	priority := TaskPriorityMedium
 	if req.Priority != nil {
@@ -81,7 +93,7 @@ func (s *Service) CreateTask(ctx context.Context, r *http.Request, req CreateTas
 }
 
 // UpdateTask updates task fields
-func (s *Service) UpdateTask(ctx context.Context, r *http.Request, taskID string, req UpdateTaskRequest, currentUserID string) (*Task, error) {
+func (s *service) UpdateTask(ctx context.Context, r *http.Request, taskID string, req UpdateTaskRequest, currentUserID string) (*Task, error) {
 	task, err := s.repo.GetByID(ctx, taskID)
 	if err != nil {
 		return nil, err
@@ -125,7 +137,7 @@ func (s *Service) UpdateTask(ctx context.Context, r *http.Request, taskID string
 }
 
 // AssignTask assigns a task to a user and records the assignment event
-func (s *Service) AssignTask(ctx context.Context, r *http.Request, taskID string, req AssignTaskRequest, currentUserID string, currentUserRole models.Role) (*Task, error) {
+func (s *service) AssignTask(ctx context.Context, r *http.Request, taskID string, req AssignTaskRequest, currentUserID string, currentUserRole models.Role) (*Task, error) {
 	task, err := s.repo.GetByID(ctx, taskID)
 	if err != nil {
 		return nil, err
@@ -183,7 +195,7 @@ func (s *Service) AssignTask(ctx context.Context, r *http.Request, taskID string
 }
 
 // CompleteTask marks a task as completed
-func (s *Service) CompleteTask(ctx context.Context, r *http.Request, taskID string, req CompleteTaskRequest, currentUserID string, currentUserRole models.Role) (*Task, error) {
+func (s *service) CompleteTask(ctx context.Context, r *http.Request, taskID string, req CompleteTaskRequest, currentUserID string, currentUserRole models.Role) (*Task, error) {
 	task, err := s.repo.GetByID(ctx, taskID)
 	if err != nil {
 		return nil, err
@@ -243,22 +255,22 @@ func (s *Service) CompleteTask(ctx context.Context, r *http.Request, taskID stri
 }
 
 // ListTasks retrieves tasks with filters
-func (s *Service) ListTasks(ctx context.Context, filter ListTasksFilter) ([]Task, int64, error) {
+func (s *service) ListTasks(ctx context.Context, filter ListTasksFilter) ([]Task, int64, error) {
 	return s.repo.List(ctx, filter)
 }
 
 // GetTaskHistory retrieves assignment history for a task
-func (s *Service) GetTaskHistory(ctx context.Context, taskID string, limit, offset int) ([]TaskAssignmentEvent, int64, error) {
+func (s *service) GetTaskHistory(ctx context.Context, taskID string, limit, offset int) ([]TaskAssignmentEvent, int64, error) {
 	return s.repo.GetAssignmentHistoryPaginated(ctx, taskID, limit, offset)
 }
 
 // GetTaskByID retrieves a task by ID
-func (s *Service) GetTaskByID(ctx context.Context, taskID string) (*Task, error) {
+func (s *service) GetTaskByID(ctx context.Context, taskID string) (*Task, error) {
 	return s.repo.GetByID(ctx, taskID)
 }
 
 // GetTasksWithOwnerDetails retrieves tasks with owner details populated
-func (s *Service) GetTasksWithOwnerDetails(ctx context.Context, filter ListTasksFilter) ([]TaskWithOwner, int64, error) {
+func (s *service) GetTasksWithOwnerDetails(ctx context.Context, filter ListTasksFilter) ([]TaskWithOwner, int64, error) {
 	tasks, total, err := s.repo.List(ctx, filter)
 	if err != nil {
 		return nil, 0, err

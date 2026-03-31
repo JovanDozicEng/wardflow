@@ -16,12 +16,12 @@ import (
 
 // Handler handles consult request HTTP requests
 type Handler struct {
-	service *Service
+	service Service
 	db      *database.DB
 }
 
 // NewHandler creates a new consult request handler
-func NewHandler(service *Service, db *database.DB) *Handler {
+func NewHandler(service Service, db *database.DB) *Handler {
 	return &Handler{
 		service: service,
 		db:      db,

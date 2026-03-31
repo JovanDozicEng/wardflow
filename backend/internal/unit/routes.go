@@ -5,10 +5,16 @@ import (
 
 	"github.com/wardflow/backend/internal/middleware"
 	"github.com/wardflow/backend/pkg/auth"
+	"github.com/wardflow/backend/pkg/database"
 )
 
 // RegisterRoutes registers all unit routes
-func RegisterRoutes(mux *http.ServeMux, h *Handler, jwtService *auth.JWTService) {
+func RegisterRoutes(mux *http.ServeMux, db *database.DB, jwtService auth.TokenService) {
+	// Wire dependencies
+	repo := NewRepository(db)
+	svc := NewService(repo)
+	h := NewHandler(svc)
+
 	// All routes require authentication
 	authMiddleware := middleware.AuthMiddleware(jwtService)
 

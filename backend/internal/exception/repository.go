@@ -11,23 +11,31 @@ import (
 // ErrNotFound is returned when an exception event is not found
 var ErrNotFound = errors.New("exception event not found")
 
-// Repository handles exception event data access
-type Repository struct {
+// Repository defines the interface for exception event data access
+type Repository interface {
+	Create(ctx context.Context, e *ExceptionEvent) error
+	GetByID(ctx context.Context, id string) (*ExceptionEvent, error)
+	List(ctx context.Context, f ListExceptionsFilter) ([]*ExceptionEvent, int64, error)
+	Update(ctx context.Context, e *ExceptionEvent) error
+}
+
+// repository handles exception event data access
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new exception event repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // Create creates a new exception event
-func (r *Repository) Create(ctx context.Context, e *ExceptionEvent) error {
+func (r *repository) Create(ctx context.Context, e *ExceptionEvent) error {
 	return r.db.WithContext(ctx).Create(e).Error
 }
 
 // GetByID retrieves an exception event by ID
-func (r *Repository) GetByID(ctx context.Context, id string) (*ExceptionEvent, error) {
+func (r *repository) GetByID(ctx context.Context, id string) (*ExceptionEvent, error) {
 	var exception ExceptionEvent
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&exception).Error
 	if err != nil {
@@ -40,7 +48,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*ExceptionEvent, e
 }
 
 // List retrieves exception events based on filters
-func (r *Repository) List(ctx context.Context, f ListExceptionsFilter) ([]*ExceptionEvent, int64, error) {
+func (r *repository) List(ctx context.Context, f ListExceptionsFilter) ([]*ExceptionEvent, int64, error) {
 	var exceptions []*ExceptionEvent
 	var total int64
 
@@ -81,7 +89,7 @@ func (r *Repository) List(ctx context.Context, f ListExceptionsFilter) ([]*Excep
 }
 
 // Update updates an exception event
-func (r *Repository) Update(ctx context.Context, e *ExceptionEvent) error {
+func (r *repository) Update(ctx context.Context, e *ExceptionEvent) error {
 	result := r.db.WithContext(ctx).Save(e)
 	if result.Error != nil {
 		return result.Error

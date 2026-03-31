@@ -6,18 +6,29 @@ import (
 	"time"
 )
 
-// Service handles consult request business logic
-type Service struct {
-	repo *Repository
+// Service defines the interface for consult request business logic
+type Service interface {
+	Create(ctx context.Context, req *CreateConsultRequest, byUserID string) (*ConsultRequest, error)
+	Accept(ctx context.Context, id string, byUserID string) (*ConsultRequest, error)
+	Decline(ctx context.Context, id string, req *DeclineConsultRequest, byUserID string) (*ConsultRequest, error)
+	Redirect(ctx context.Context, id string, req *RedirectConsultRequest, byUserID string) (*ConsultRequest, error)
+	Complete(ctx context.Context, id string, byUserID string) (*ConsultRequest, error)
+	List(ctx context.Context, f ListConsultsFilter) ([]*ConsultRequest, int64, error)
+	GetByID(ctx context.Context, id string) (*ConsultRequest, error)
+}
+
+// service handles consult request business logic
+type service struct {
+	repo Repository
 }
 
 // NewService creates a new consult request service
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository) Service {
+	return &service{repo: repo}
 }
 
 // Create creates a new consult request with validation
-func (s *Service) Create(ctx context.Context, req *CreateConsultRequest, byUserID string) (*ConsultRequest, error) {
+func (s *service) Create(ctx context.Context, req *CreateConsultRequest, byUserID string) (*ConsultRequest, error) {
 	// Validate required fields
 	if req.EncounterID == "" {
 		return nil, errors.New("encounterId is required")
@@ -46,7 +57,7 @@ func (s *Service) Create(ctx context.Context, req *CreateConsultRequest, byUserI
 }
 
 // Accept accepts a pending consult request
-func (s *Service) Accept(ctx context.Context, id string, byUserID string) (*ConsultRequest, error) {
+func (s *service) Accept(ctx context.Context, id string, byUserID string) (*ConsultRequest, error) {
 	consult, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -70,7 +81,7 @@ func (s *Service) Accept(ctx context.Context, id string, byUserID string) (*Cons
 }
 
 // Decline declines a pending consult request
-func (s *Service) Decline(ctx context.Context, id string, req *DeclineConsultRequest, byUserID string) (*ConsultRequest, error) {
+func (s *service) Decline(ctx context.Context, id string, req *DeclineConsultRequest, byUserID string) (*ConsultRequest, error) {
 	consult, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -99,7 +110,7 @@ func (s *Service) Decline(ctx context.Context, id string, req *DeclineConsultReq
 }
 
 // Redirect redirects a pending consult request to another service
-func (s *Service) Redirect(ctx context.Context, id string, req *RedirectConsultRequest, byUserID string) (*ConsultRequest, error) {
+func (s *service) Redirect(ctx context.Context, id string, req *RedirectConsultRequest, byUserID string) (*ConsultRequest, error) {
 	consult, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -132,7 +143,7 @@ func (s *Service) Redirect(ctx context.Context, id string, req *RedirectConsultR
 }
 
 // Complete marks an accepted consult request as completed
-func (s *Service) Complete(ctx context.Context, id string, byUserID string) (*ConsultRequest, error) {
+func (s *service) Complete(ctx context.Context, id string, byUserID string) (*ConsultRequest, error) {
 	consult, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -155,11 +166,11 @@ func (s *Service) Complete(ctx context.Context, id string, byUserID string) (*Co
 }
 
 // List retrieves consult requests based on filters
-func (s *Service) List(ctx context.Context, f ListConsultsFilter) ([]*ConsultRequest, int64, error) {
+func (s *service) List(ctx context.Context, f ListConsultsFilter) ([]*ConsultRequest, int64, error) {
 	return s.repo.List(ctx, f)
 }
 
 // GetByID retrieves a consult request by ID
-func (s *Service) GetByID(ctx context.Context, id string) (*ConsultRequest, error) {
+func (s *service) GetByID(ctx context.Context, id string) (*ConsultRequest, error) {
 	return s.repo.GetByID(ctx, id)
 }

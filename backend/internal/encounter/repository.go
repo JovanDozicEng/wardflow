@@ -11,23 +11,31 @@ import (
 // ErrNotFound is returned when an encounter is not found
 var ErrNotFound = errors.New("encounter not found")
 
-// Repository handles encounter data access
-type Repository struct {
+// Repository defines the interface for encounter data access
+type Repository interface {
+	Create(ctx context.Context, e *Encounter) error
+	GetByID(ctx context.Context, id string) (*Encounter, error)
+	List(ctx context.Context, f ListEncountersFilter) ([]*Encounter, int64, error)
+	Update(ctx context.Context, e *Encounter) error
+}
+
+// repository handles encounter data access
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new encounter repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // Create creates a new encounter
-func (r *Repository) Create(ctx context.Context, e *Encounter) error {
+func (r *repository) Create(ctx context.Context, e *Encounter) error {
 	return r.db.WithContext(ctx).Create(e).Error
 }
 
 // GetByID retrieves an encounter by ID
-func (r *Repository) GetByID(ctx context.Context, id string) (*Encounter, error) {
+func (r *repository) GetByID(ctx context.Context, id string) (*Encounter, error) {
 	var encounter Encounter
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&encounter).Error
 	if err != nil {
@@ -40,7 +48,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Encounter, error)
 }
 
 // List retrieves encounters based on filters
-func (r *Repository) List(ctx context.Context, f ListEncountersFilter) ([]*Encounter, int64, error) {
+func (r *repository) List(ctx context.Context, f ListEncountersFilter) ([]*Encounter, int64, error) {
 	var encounters []*Encounter
 	var total int64
 
@@ -81,7 +89,7 @@ func (r *Repository) List(ctx context.Context, f ListEncountersFilter) ([]*Encou
 }
 
 // Update updates an encounter
-func (r *Repository) Update(ctx context.Context, e *Encounter) error {
+func (r *repository) Update(ctx context.Context, e *Encounter) error {
 	result := r.db.WithContext(ctx).Save(e)
 	if result.Error != nil {
 		return result.Error

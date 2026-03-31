@@ -1,25 +1,117 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/wardflow/backend/internal/httputil"
-	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/internal/models"
+	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
 	"gorm.io/gorm"
 )
 
-// AdminStaffHandler handles admin-only staff management endpoints.
-type AdminStaffHandler struct {
+// StaffService defines the service interface for staff management
+type StaffService interface {
+	ListStaff(ctx context.Context, q, role string, limit, offset int) ([]StaffProfile, int64, error)
+	UpdateStaff(ctx context.Context, userID string, req UpdateStaffRequest) (*StaffProfile, error)
+}
+
+type staffService struct {
 	db *database.DB
 }
 
-func NewAdminStaffHandler(db *database.DB) *AdminStaffHandler {
-	return &AdminStaffHandler{db: db}
+// NewStaffService creates a new staff service
+func NewStaffService(db *database.DB) StaffService {
+	return &staffService{db: db}
+}
+
+func (s *staffService) ListStaff(ctx context.Context, q, role string, limit, offset int) ([]StaffProfile, int64, error) {
+	tx := s.db.DB.WithContext(ctx).Model(&models.User{}).Order("name asc")
+	if q != "" {
+		like := "%" + q + "%"
+		tx = tx.Where("name ILIKE ? OR email ILIKE ?", like, like)
+	}
+	if role != "" {
+		tx = tx.Where("role = ?", role)
+	}
+
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var users []models.User
+	if err := tx.Limit(limit).Offset(offset).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+
+	profiles := make([]StaffProfile, len(users))
+	for i, u := range users {
+		profiles[i] = toStaffProfile(u)
+	}
+
+	return profiles, total, nil
+}
+
+func (s *staffService) UpdateStaff(ctx context.Context, userID string, req UpdateStaffRequest) (*StaffProfile, error) {
+	var user models.User
+	if err := s.db.DB.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	updates := map[string]any{}
+	if req.Role != nil {
+		if !isValidRole(*req.Role) {
+			return nil, errors.New("invalid role")
+		}
+		updates["role"] = *req.Role
+		user.Role = *req.Role
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+		user.IsActive = *req.IsActive
+	}
+	if req.UnitIDs != nil {
+		updates["unit_ids"] = *req.UnitIDs
+		user.UnitIDs = *req.UnitIDs
+	}
+	if req.DepartmentIDs != nil {
+		updates["department_ids"] = *req.DepartmentIDs
+		user.DepartmentIDs = *req.DepartmentIDs
+	}
+
+	if len(updates) == 0 {
+		profile := toStaffProfile(user)
+		return &profile, nil
+	}
+
+	if err := s.db.DB.WithContext(ctx).Model(&user).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
+	// Re-fetch to get updated timestamps
+	if err := s.db.DB.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
+		return nil, err
+	}
+
+	profile := toStaffProfile(user)
+	return &profile, nil
+}
+
+// AdminStaffHandler handles admin-only staff management endpoints.
+type AdminStaffHandler struct {
+	service StaffService
+}
+
+func NewAdminStaffHandler(service StaffService) *AdminStaffHandler {
+	return &AdminStaffHandler{service: service}
 }
 
 // StaffProfile is the full user profile returned to admins.
@@ -81,30 +173,10 @@ func (h *AdminStaffHandler) ListStaff(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tx := h.db.DB.Model(&models.User{}).Order("name asc")
-	if q != "" {
-		like := "%" + q + "%"
-		tx = tx.Where("name ILIKE ? OR email ILIKE ?", like, like)
-	}
-	if role != "" {
-		tx = tx.Where("role = ?", role)
-	}
-
-	var total int64
-	if err := tx.Count(&total).Error; err != nil {
+	profiles, total, err := h.service.ListStaff(r.Context(), q, role, limit, offset)
+	if err != nil {
 		httputil.RespondError(w, r, http.StatusInternalServerError, "DB_ERROR", err.Error())
 		return
-	}
-
-	var users []models.User
-	if err := tx.Limit(limit).Offset(offset).Find(&users).Error; err != nil {
-		httputil.RespondError(w, r, http.StatusInternalServerError, "DB_ERROR", err.Error())
-		return
-	}
-
-	profiles := make([]StaffProfile, len(users))
-	for i, u := range users {
-		profiles[i] = toStaffProfile(u)
 	}
 
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{
@@ -143,55 +215,21 @@ func (h *AdminStaffHandler) UpdateStaff(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var user models.User
-	if err := h.db.DB.First(&user, "id = ?", userID).Error; err != nil {
+	profile, err := h.service.UpdateStaff(r.Context(), userID, req)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			httputil.RespondError(w, r, http.StatusNotFound, "NOT_FOUND", "user not found")
 			return
 		}
-		httputil.RespondError(w, r, http.StatusInternalServerError, "DB_ERROR", err.Error())
-		return
-	}
-
-	updates := map[string]any{}
-	if req.Role != nil {
-		if !isValidRole(*req.Role) {
+		if err.Error() == "invalid role" {
 			httputil.RespondError(w, r, http.StatusBadRequest, "INVALID_ROLE", "unknown role value")
 			return
 		}
-		updates["role"] = *req.Role
-		user.Role = *req.Role
-	}
-	if req.IsActive != nil {
-		updates["is_active"] = *req.IsActive
-		user.IsActive = *req.IsActive
-	}
-	if req.UnitIDs != nil {
-		updates["unit_ids"] = *req.UnitIDs
-		user.UnitIDs = *req.UnitIDs
-	}
-	if req.DepartmentIDs != nil {
-		updates["department_ids"] = *req.DepartmentIDs
-		user.DepartmentIDs = *req.DepartmentIDs
-	}
-
-	if len(updates) == 0 {
-		httputil.RespondJSON(w, http.StatusOK, toStaffProfile(user))
-		return
-	}
-
-	if err := h.db.DB.Model(&user).Updates(updates).Error; err != nil {
 		httputil.RespondError(w, r, http.StatusInternalServerError, "DB_ERROR", err.Error())
 		return
 	}
 
-	// Re-fetch to get updated timestamps
-	if err := h.db.DB.First(&user, "id = ?", userID).Error; err != nil {
-		httputil.RespondError(w, r, http.StatusInternalServerError, "DB_ERROR", err.Error())
-		return
-	}
-
-	httputil.RespondJSON(w, http.StatusOK, toStaffProfile(user))
+	httputil.RespondJSON(w, http.StatusOK, profile)
 }
 
 func isValidRole(r models.Role) bool {

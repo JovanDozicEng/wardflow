@@ -137,8 +137,9 @@ type AssignBedRequest struct {
 
 // ListBedsFilter represents filters for listing beds
 type ListBedsFilter struct {
-	UnitID string
-	Status string
-	Limit  int
-	Offset int
+	UnitID  string
+	UnitIDs []string // For filtering by multiple units (non-admin users)
+	Status  string
+	Limit   int
+	Offset  int
 }

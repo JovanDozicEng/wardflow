@@ -28,12 +28,12 @@ type Router struct {
 handler        http.Handler // CORS-wrapped mux
 mux            *http.ServeMux
 authHandler    *handler.AuthHandler
-jwtService     *auth.JWTService
+jwtService     auth.TokenService
 allowedOrigins []string
 }
 
 // New creates a new router
-func New(db *database.DB, jwtService *auth.JWTService, authService *auth.Service) *Router {
+func New(db *database.DB, jwtService auth.TokenService, authService auth.AuthService) *Router {
 mux := http.NewServeMux()
 
 r := &Router{
@@ -97,11 +97,9 @@ patientHandler := patient.NewHandler(patientService, db)
 patient.RegisterRoutes(r.mux, patientHandler, r.jwtService)
 
 // Reference data routes - Departments and Units
-departmentHandler := department.NewHandler(db)
-department.RegisterRoutes(r.mux, departmentHandler, r.jwtService)
+department.RegisterRoutes(r.mux, db, r.jwtService)
 
-unitHandler := unit.NewHandler(db)
-unit.RegisterRoutes(r.mux, unitHandler, r.jwtService)
+unit.RegisterRoutes(r.mux, db, r.jwtService)
 
 // Clinical Core routes (Developer A)
 careteam.RegisterRoutes(r.mux, db, r.jwtService)
@@ -126,23 +124,23 @@ incidentHandler := incident.NewHandler(incidentService, db)
 incident.RegisterRoutes(r.mux, incidentHandler, r.jwtService)
 
 // Operations routes (Developer B)
-bedHandler := bed.NewHandler(db)
-bed.RegisterRoutes(r.mux, bedHandler, r.jwtService)
+bed.RegisterRoutes(r.mux, db, r.jwtService)
 
-transportHandler := transport.NewHandler(db)
-transport.RegisterRoutes(r.mux, transportHandler, r.jwtService)
+transport.RegisterRoutes(r.mux, db, r.jwtService)
 
-dischargeHandler := discharge.NewHandler(db)
+dischargeRepo := discharge.NewRepository(db)
+dischargeSvc := discharge.NewService(dischargeRepo)
+dischargeHandler := discharge.NewHandler(dischargeSvc, db)
 discharge.RegisterRoutes(r.mux, dischargeHandler, r.jwtService)
 
 // Users — searchable list for care team assignment
-usersHandler := handler.NewUsersHandler(db)
+usersHandler := handler.NewUsersHandler(handler.NewUserService(db))
 r.mux.Handle("GET /api/v1/users",
 	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(usersHandler.ListUsers)),
 )
 
 // Admin staff management
-adminStaffHandler := handler.NewAdminStaffHandler(db)
+adminStaffHandler := handler.NewAdminStaffHandler(handler.NewStaffService(db))
 r.mux.Handle("GET /api/v1/admin/staff",
 	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(adminStaffHandler.ListStaff)),
 )

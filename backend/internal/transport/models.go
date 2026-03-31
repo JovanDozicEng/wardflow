@@ -71,8 +71,9 @@ type AcceptTransportRequest struct {
 
 // ListTransportFilter represents filters for listing transport requests
 type ListTransportFilter struct {
-	Status string
-	UnitID string
-	Limit  int
-	Offset int
+	Status  string
+	UnitID  string
+	UnitIDs []string // For filtering by multiple units (non-admin users)
+	Limit   int
+	Offset  int
 }
