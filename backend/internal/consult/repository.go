@@ -55,8 +55,9 @@ func (r *repository) List(ctx context.Context, f ListConsultsFilter) ([]*Consult
 	query := r.db.WithContext(ctx).Model(&ConsultRequest{})
 
 	// Apply filters
+	// consult_requests has no unit_id column; resolve via encounter subquery
 	if f.UnitID != "" {
-		query = query.Where("unit_id = ?", f.UnitID)
+		query = query.Where("encounter_id IN (SELECT id FROM encounters WHERE unit_id = ?)", f.UnitID)
 	}
 	if f.Status != "" {
 		query = query.Where("status = ?", f.Status)

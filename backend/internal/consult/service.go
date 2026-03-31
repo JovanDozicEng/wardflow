@@ -11,7 +11,7 @@ type Service interface {
 	Create(ctx context.Context, req *CreateConsultRequest, byUserID string) (*ConsultRequest, error)
 	Accept(ctx context.Context, id string, byUserID string) (*ConsultRequest, error)
 	Decline(ctx context.Context, id string, req *DeclineConsultRequest, byUserID string) (*ConsultRequest, error)
-	Redirect(ctx context.Context, id string, req *RedirectConsultRequest, byUserID string) (*ConsultRequest, error)
+	Redirect(ctx context.Context, id string, req *RedirectConsultRequest, byUserID string) (*RedirectResult, error)
 	Complete(ctx context.Context, id string, byUserID string) (*ConsultRequest, error)
 	List(ctx context.Context, f ListConsultsFilter) ([]*ConsultRequest, int64, error)
 	GetByID(ctx context.Context, id string) (*ConsultRequest, error)
@@ -109,8 +109,10 @@ func (s *service) Decline(ctx context.Context, id string, req *DeclineConsultReq
 	return consult, nil
 }
 
-// Redirect redirects a pending consult request to another service
-func (s *service) Redirect(ctx context.Context, id string, req *RedirectConsultRequest, byUserID string) (*ConsultRequest, error) {
+// Redirect redirects a pending consult request to another service.
+// It closes the original as "redirected" and creates a new pending ConsultRequest
+// for the target service so that service actually receives the request.
+func (s *service) Redirect(ctx context.Context, id string, req *RedirectConsultRequest, byUserID string) (*RedirectResult, error) {
 	consult, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -129,6 +131,7 @@ func (s *service) Redirect(ctx context.Context, id string, req *RedirectConsultR
 		return nil, errors.New("targetService is required")
 	}
 
+	// Close the original consult as redirected
 	now := time.Now().UTC()
 	consult.Status = ConsultStatusRedirected
 	consult.RedirectedTo = &req.TargetService
@@ -139,7 +142,24 @@ func (s *service) Redirect(ctx context.Context, id string, req *RedirectConsultR
 		return nil, err
 	}
 
-	return consult, nil
+	// Create a new pending ConsultRequest for the redirected-to service
+	newConsult := &ConsultRequest{
+		EncounterID:   consult.EncounterID,
+		TargetService: req.TargetService,
+		Reason:        consult.Reason,
+		Urgency:       consult.Urgency,
+		Status:        ConsultStatusPending,
+		CreatedBy:     byUserID,
+	}
+
+	if err := s.repo.Create(ctx, newConsult); err != nil {
+		return nil, errors.New("failed to create redirected consult request")
+	}
+
+	return &RedirectResult{
+		Original:   consult,
+		NewConsult: newConsult,
+	}, nil
 }
 
 // Complete marks an accepted consult request as completed
