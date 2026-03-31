@@ -77,6 +77,13 @@ export const HandoffForm = ({
         setSearching(false);
       }
     }, 300);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
   }, [query, selectedUser]);
 
   const handleSelect = (user: UserSummary) => {

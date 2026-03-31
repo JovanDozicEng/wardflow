@@ -504,16 +504,17 @@ export const EncounterDetailPage = () => {
                           <div className="space-y-2">
                             {requiredItems.map((item) => (
                               <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                                <input
-                                  type="checkbox"
-                                  checked={item.status === 'done' || item.status === 'waived'}
-                                  disabled={item.status !== 'open' || itemLoading === item.id}
-                                  onChange={() => handleCompleteItem(item.id)}
-                                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                />
-                                <div className="flex-1">
+                                <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.status === 'done' || item.status === 'waived'}
+                                    disabled={item.status !== 'open' || itemLoading === item.id}
+                                    onChange={() => handleCompleteItem(item.id)}
+                                    aria-label={item.label}
+                                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                  />
                                   <span className="text-sm font-medium text-gray-900">{item.label}</span>
-                                </div>
+                                </label>
                                 <span
                                   className={`inline-flex px-2 py-0.5 rounded text-xs font-medium capitalize ${ITEM_STATUS_COLORS[item.status]}`}
                                 >
@@ -538,16 +539,17 @@ export const EncounterDetailPage = () => {
                           <div className="space-y-2">
                             {optionalItems.map((item) => (
                               <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                                <input
-                                  type="checkbox"
-                                  checked={item.status === 'done' || item.status === 'waived'}
-                                  disabled={item.status !== 'open' || itemLoading === item.id}
-                                  onChange={() => handleCompleteItem(item.id)}
-                                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                />
-                                <div className="flex-1">
+                                <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.status === 'done' || item.status === 'waived'}
+                                    disabled={item.status !== 'open' || itemLoading === item.id}
+                                    onChange={() => handleCompleteItem(item.id)}
+                                    aria-label={item.label}
+                                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                  />
                                   <span className="text-sm font-medium text-gray-900">{item.label}</span>
-                                </div>
+                                </label>
                                 <span
                                   className={`inline-flex px-2 py-0.5 rounded text-xs font-medium capitalize ${ITEM_STATUS_COLORS[item.status]}`}
                                 >

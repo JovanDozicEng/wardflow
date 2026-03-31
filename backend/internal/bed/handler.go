@@ -2,6 +2,7 @@ package bed
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
 	"github.com/wardflow/backend/pkg/logger"
+	"gorm.io/gorm"
 )
 
 // Handler handles bed HTTP requests
@@ -26,6 +28,7 @@ func NewHandler(db *database.DB) *Handler {
 
 // ListBeds handles GET /api/v1/beds?unitId=&status=&limit=&offset=
 func (h *Handler) ListBeds(w http.ResponseWriter, r *http.Request) {
+	userCtx := auth.MustGetUserContext(r.Context())
 	q := r.URL.Query()
 	unitID := q.Get("unitId")
 	status := q.Get("status")
@@ -39,15 +42,40 @@ func (h *Handler) ListBeds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx := h.db.DB.Model(&Bed{})
-	if unitID != "" {
+
+	// Unit-scoped RBAC
+	isAdmin := userCtx.Role == models.RoleAdmin
+	if !isAdmin {
+		if unitID != "" {
+			allowed := false
+			for _, u := range userCtx.UnitIDs {
+				if u == unitID {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				httputil.RespondError(w, r, http.StatusForbidden, "FORBIDDEN", "not authorized to access the requested unit")
+				return
+			}
+			tx = tx.Where("unit_id = ?", unitID)
+		} else if len(userCtx.UnitIDs) > 0 {
+			tx = tx.Where("unit_id IN ?", []string(userCtx.UnitIDs))
+		}
+	} else if unitID != "" {
 		tx = tx.Where("unit_id = ?", unitID)
 	}
+
 	if status != "" {
 		tx = tx.Where("current_status = ?", status)
 	}
 
 	var total int64
-	tx.Count(&total)
+	if err := tx.Count(&total).Error; err != nil {
+		logger.Error("failed to count beds: %v", err)
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list beds")
+		return
+	}
 
 	var beds []Bed
 	if err := tx.Limit(limit).Offset(offset).Order("room ASC, label ASC").Find(&beds).Error; err != nil {
@@ -121,6 +149,17 @@ func (h *Handler) GetBed(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateBedStatus(w http.ResponseWriter, r *http.Request) {
 	userCtx := auth.MustGetUserContext(r.Context())
 	bedID := r.PathValue("bedId")
+
+	// Only operations, charge_nurse, and admin may change bed status
+	allowedRoles := map[models.Role]bool{
+		models.RoleAdmin:       true,
+		models.RoleOperations:  true,
+		models.RoleChargeNurse: true,
+	}
+	if !allowedRoles[userCtx.Role] {
+		httputil.RespondError(w, r, http.StatusForbidden, "FORBIDDEN", "only operations, charge nurse, or admin can update bed status")
+		return
+	}
 
 	var bed Bed
 	if err := h.db.DB.First(&bed, "id = ?", bedID).Error; err != nil {
@@ -252,26 +291,54 @@ func (h *Handler) AssignBed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update bed to occupied
+	// Update bed to occupied — wrap in transaction to prevent double-assign
 	fromStatus := bed.CurrentStatus
-	event := BedStatusEvent{
-		BedID:      req.BedID,
-		FromStatus: &fromStatus,
-		ToStatus:   BedStatusOccupied,
-		ChangedBy:  userCtx.UserID,
-		ChangedAt:  time.Now().UTC(),
-	}
-	h.db.DB.Create(&event)
-	h.db.DB.Model(&bed).Updates(map[string]any{
-		"current_status":      BedStatusOccupied,
-		"current_encounter_id": bedReq.EncounterID,
+	now := time.Now().UTC()
+	encID := bedReq.EncounterID
+
+	txErr := h.db.DB.Transaction(func(tx *gorm.DB) error {
+		// Re-fetch bed with lock to prevent race condition
+		var lockedBed Bed
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&lockedBed, "id = ?", req.BedID).Error; err != nil {
+			return err
+		}
+		if lockedBed.CurrentStatus != BedStatusAvailable {
+			return fmt.Errorf("bed is no longer available")
+		}
+
+		event := BedStatusEvent{
+			BedID:      req.BedID,
+			FromStatus: &fromStatus,
+			ToStatus:   BedStatusOccupied,
+			ChangedBy:  userCtx.UserID,
+			ChangedAt:  now,
+		}
+		if err := tx.Create(&event).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&lockedBed).Updates(map[string]any{
+			"current_status":       BedStatusOccupied,
+			"current_encounter_id": encID,
+		}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&bedReq).Updates(map[string]any{
+			"status":          BedRequestStatusAssigned,
+			"assigned_bed_id": req.BedID,
+		}).Error; err != nil {
+			return err
+		}
+
+		return nil
 	})
 
-	// Update bed request
-	h.db.DB.Model(&bedReq).Updates(map[string]any{
-		"status":          BedRequestStatusAssigned,
-		"assigned_bed_id": req.BedID,
-	})
+	if txErr != nil {
+		logger.Error("failed to assign bed: %v", txErr)
+		httputil.RespondError(w, r, http.StatusConflict, "ASSIGN_FAILED", txErr.Error())
+		return
+	}
 
 	audit.Log(r.Context(), h.db, r, audit.Entry{
 		EntityType: "bed_request",
@@ -281,6 +348,9 @@ func (h *Handler) AssignBed(w http.ResponseWriter, r *http.Request) {
 		After:      map[string]any{"status": "assigned", "bedId": req.BedID},
 	})
 
-	h.db.DB.First(&bedReq, "id = ?", requestID)
+	if err := h.db.DB.First(&bedReq, "id = ?", requestID).Error; err != nil {
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated bed request")
+		return
+	}
 	httputil.RespondJSON(w, http.StatusOK, bedReq)
 }

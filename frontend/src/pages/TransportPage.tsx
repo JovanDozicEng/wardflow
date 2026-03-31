@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { Layout } from '../shared/components/layout/Layout';
 import { PageHeader } from '../shared/components/layout/PageHeader';
 import { Spinner } from '../shared/components/ui/Spinner';
@@ -182,7 +183,7 @@ export const TransportPage = () => {
       await transportService.acceptRequest(id, { assignedTo: user.id });
       fetchRequests();
     } catch (err: any) {
-      alert(err.response?.data?.error?.message || 'Failed to accept request');
+      toast.error(err.response?.data?.error?.message || 'Failed to accept request');
     } finally {
       setActionLoading(null);
     }
@@ -194,7 +195,7 @@ export const TransportPage = () => {
       await transportService.completeRequest(id);
       fetchRequests();
     } catch (err: any) {
-      alert(err.response?.data?.error?.message || 'Failed to complete request');
+      toast.error(err.response?.data?.error?.message || 'Failed to complete request');
     } finally {
       setActionLoading(null);
     }

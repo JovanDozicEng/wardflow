@@ -8,6 +8,7 @@ import (
 
 	"github.com/wardflow/backend/internal/audit"
 	"github.com/wardflow/backend/internal/httputil"
+	"github.com/wardflow/backend/internal/models"
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
 	"github.com/wardflow/backend/pkg/logger"
@@ -25,7 +26,9 @@ func NewHandler(db *database.DB) *Handler {
 
 // ListRequests handles GET /api/v1/transport/requests?status=&unitId=&limit=&offset=
 func (h *Handler) ListRequests(w http.ResponseWriter, r *http.Request) {
+	userCtx := auth.MustGetUserContext(r.Context())
 	q := r.URL.Query()
+	unitID := q.Get("unitId")
 	status := q.Get("status")
 	limit := 50
 	offset := 0
@@ -37,12 +40,41 @@ func (h *Handler) ListRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx := h.db.DB.Model(&TransportRequest{})
+
+	// Unit-scoped RBAC: non-admins are restricted to their assigned units
+	isAdmin := userCtx.Role == models.RoleAdmin
+	if !isAdmin {
+		if unitID != "" {
+			// Validate the requested unit is in user's authorized units
+			allowed := false
+			for _, u := range userCtx.UnitIDs {
+				if u == unitID {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				httputil.RespondError(w, r, http.StatusForbidden, "FORBIDDEN", "not authorized to access the requested unit")
+				return
+			}
+			tx = tx.Where("unit_id = ?", unitID)
+		} else if len(userCtx.UnitIDs) > 0 {
+			tx = tx.Where("unit_id IN ?", []string(userCtx.UnitIDs))
+		}
+	} else if unitID != "" {
+		tx = tx.Where("unit_id = ?", unitID)
+	}
+
 	if status != "" {
 		tx = tx.Where("status = ?", status)
 	}
 
 	var total int64
-	tx.Count(&total)
+	if err := tx.Count(&total).Error; err != nil {
+		logger.Error("failed to count transport requests: %v", err)
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list transport requests")
+		return
+	}
 
 	var requests []TransportRequest
 	if err := tx.Limit(limit).Offset(offset).Order("created_at DESC").Find(&requests).Error; err != nil {
@@ -136,17 +168,18 @@ func (h *Handler) AcceptRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Record change event
 	changedFields, _ := json.Marshal(map[string]any{
 		"status":     TransportStatusAssigned,
 		"assignedTo": assignedTo,
 	})
-	h.db.DB.Create(&TransportChangeEvent{
+	if err := h.db.DB.Create(&TransportChangeEvent{
 		RequestID:     requestID,
 		ChangedFields: string(changedFields),
 		ChangedBy:     userCtx.UserID,
 		ChangedAt:     now,
-	})
+	}).Error; err != nil {
+		logger.Error("failed to create transport change event: %v", err)
+	}
 
 	audit.Log(r.Context(), h.db, r, audit.Entry{
 		EntityType: "transport_request",
@@ -157,7 +190,10 @@ func (h *Handler) AcceptRequest(w http.ResponseWriter, r *http.Request) {
 		After:      map[string]any{"status": TransportStatusAssigned, "assignedTo": assignedTo},
 	})
 
-	h.db.DB.First(&tr, "id = ?", requestID)
+	if err := h.db.DB.First(&tr, "id = ?", requestID).Error; err != nil {
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated request")
+		return
+	}
 	httputil.RespondJSON(w, http.StatusOK, tr)
 }
 
@@ -202,17 +238,23 @@ func (h *Handler) UpdateRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.db.DB.Model(&tr).Updates(updates)
+	if err := h.db.DB.Model(&tr).Updates(updates).Error; err != nil {
+		logger.Error("failed to update transport request: %v", err)
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update transport request")
+		return
+	}
 
 	now := time.Now().UTC()
 	cf, _ := json.Marshal(changedFields)
-	h.db.DB.Create(&TransportChangeEvent{
+	if err := h.db.DB.Create(&TransportChangeEvent{
 		RequestID:     requestID,
 		ChangedFields: string(cf),
 		ChangedBy:     userCtx.UserID,
 		Reason:        req.Reason,
 		ChangedAt:     now,
-	})
+	}).Error; err != nil {
+		logger.Error("failed to create transport change event: %v", err)
+	}
 
 	audit.Log(r.Context(), h.db, r, audit.Entry{
 		EntityType: "transport_request",
@@ -223,7 +265,10 @@ func (h *Handler) UpdateRequest(w http.ResponseWriter, r *http.Request) {
 		After:      changedFields,
 	})
 
-	h.db.DB.First(&tr, "id = ?", requestID)
+	if err := h.db.DB.First(&tr, "id = ?", requestID).Error; err != nil {
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated request")
+		return
+	}
 	httputil.RespondJSON(w, http.StatusOK, tr)
 }
 
@@ -243,15 +288,21 @@ func (h *Handler) CompleteRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UTC()
-	h.db.DB.Model(&tr).Update("status", TransportStatusCompleted)
+	if err := h.db.DB.Model(&tr).Update("status", TransportStatusCompleted).Error; err != nil {
+		logger.Error("failed to complete transport request: %v", err)
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to complete transport request")
+		return
+	}
 
 	cf, _ := json.Marshal(map[string]any{"status": TransportStatusCompleted})
-	h.db.DB.Create(&TransportChangeEvent{
+	if err := h.db.DB.Create(&TransportChangeEvent{
 		RequestID:     requestID,
 		ChangedFields: string(cf),
 		ChangedBy:     userCtx.UserID,
 		ChangedAt:     now,
-	})
+	}).Error; err != nil {
+		logger.Error("failed to create transport change event: %v", err)
+	}
 
 	audit.Log(r.Context(), h.db, r, audit.Entry{
 		EntityType: "transport_request",
@@ -262,6 +313,10 @@ func (h *Handler) CompleteRequest(w http.ResponseWriter, r *http.Request) {
 		After:      map[string]any{"status": TransportStatusCompleted},
 	})
 
-	h.db.DB.First(&tr, "id = ?", requestID)
+	if err := h.db.DB.First(&tr, "id = ?", requestID).Error; err != nil {
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated request")
+		return
+	}
 	httputil.RespondJSON(w, http.StatusOK, tr)
 }
+
