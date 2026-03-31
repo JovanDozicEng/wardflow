@@ -140,6 +140,15 @@ usersHandler := handler.NewUsersHandler(db)
 r.mux.Handle("GET /api/v1/users",
 	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(usersHandler.ListUsers)),
 )
+
+// Admin staff management
+adminStaffHandler := handler.NewAdminStaffHandler(db)
+r.mux.Handle("GET /api/v1/admin/staff",
+	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(adminStaffHandler.ListStaff)),
+)
+r.mux.Handle("PATCH /api/v1/admin/staff/{userId}",
+	middleware.AuthMiddleware(r.jwtService)(http.HandlerFunc(adminStaffHandler.UpdateStaff)),
+)
 }
 
 func healthHandler(db *database.DB) http.HandlerFunc {

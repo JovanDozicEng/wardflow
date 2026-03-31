@@ -19,6 +19,7 @@ import DischargePage from '../pages/DischargePage';
 import IncidentsPage from '../pages/IncidentsPage';
 import DepartmentsPage from '../pages/DepartmentsPage';
 import UnitsPage from '../pages/UnitsPage';
+import StaffManagementPage from '../pages/StaffManagementPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
@@ -179,6 +180,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <UnitsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.STAFF_LIST,
+    element: (
+      <ProtectedRoute>
+        <StaffManagementPage />
       </ProtectedRoute>
     ),
   },
