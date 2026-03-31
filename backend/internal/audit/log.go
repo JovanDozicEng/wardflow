@@ -82,7 +82,9 @@ func Log(ctx context.Context, db *database.DB, r *http.Request, entry Entry) {
 	}
 
 	// Write to database
-	if err := db.Create(&auditLog).Error; err != nil {
-		logger.Warn("failed to write audit log: %v", err)
+	if db != nil {
+		if err := db.Create(&auditLog).Error; err != nil {
+			logger.Warn("failed to write audit log: %v", err)
+		}
 	}
 }
