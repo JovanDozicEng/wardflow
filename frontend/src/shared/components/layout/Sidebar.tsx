@@ -165,6 +165,11 @@ export const Sidebar = () => {
                 path: ROUTES.UNIT_LIST,
                 icon: LayoutGrid,
               },
+              {
+                label: 'Staff',
+                path: ROUTES.STAFF_LIST,
+                icon: Users,
+              },
             ],
           },
         ]

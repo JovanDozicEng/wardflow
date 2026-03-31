@@ -55,6 +55,7 @@ export const ROUTES = {
   // Admin routes
   DEPARTMENT_LIST: '/admin/departments',
   UNIT_LIST: '/admin/units',
+  STAFF_LIST: '/admin/staff',
   
   // Error routes
   NOT_FOUND: '/404',
