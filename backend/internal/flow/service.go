@@ -11,22 +11,32 @@ import (
 	"github.com/wardflow/backend/pkg/database"
 )
 
-// Service handles flow tracking business logic
-type Service struct {
-	repo *Repository
+// Service defines the business logic interface for flow tracking
+type Service interface {
+	RecordTransition(ctx context.Context, r *http.Request, encounterID string, req CreateTransitionRequest, currentUserID string) (*FlowStateTransition, error)
+	OverrideTransition(ctx context.Context, r *http.Request, encounterID string, req OverrideTransitionRequest, currentUserID string, userRole models.Role) (*FlowStateTransition, error)
+	GetTimeline(ctx context.Context, encounterID string) (*FlowTimelineResponse, error)
+	GetTimelinePaginated(ctx context.Context, encounterID string, limit, offset int) (*FlowTimelineResponse, error)
+	GetTimelineWithActors(ctx context.Context, encounterID string) (*FlowTimelineDetailResponse, error)
+	GetCurrentState(ctx context.Context, encounterID string) (*FlowState, error)
+}
+
+// service handles flow tracking business logic
+type service struct {
+	repo Repository
 	db   *database.DB
 }
 
 // NewService creates a new flow service
-func NewService(db *database.DB) *Service {
-	return &Service{
-		repo: NewRepository(db),
+func NewService(repo Repository, db *database.DB) Service {
+	return &service{
+		repo: repo,
 		db:   db,
 	}
 }
 
 // RecordTransition records a state transition with validation
-func (s *Service) RecordTransition(ctx context.Context, r *http.Request, encounterID string, req CreateTransitionRequest, currentUserID string) (*FlowStateTransition, error) {
+func (s *service) RecordTransition(ctx context.Context, r *http.Request, encounterID string, req CreateTransitionRequest, currentUserID string) (*FlowStateTransition, error) {
 	// Get current state
 	currentTransition, err := s.repo.GetCurrentState(ctx, encounterID)
 	if err != nil {
@@ -79,7 +89,7 @@ func (s *Service) RecordTransition(ctx context.Context, r *http.Request, encount
 }
 
 // OverrideTransition records a privileged state transition that bypasses validation
-func (s *Service) OverrideTransition(ctx context.Context, r *http.Request, encounterID string, req OverrideTransitionRequest, currentUserID string, userRole models.Role) (*FlowStateTransition, error) {
+func (s *service) OverrideTransition(ctx context.Context, r *http.Request, encounterID string, req OverrideTransitionRequest, currentUserID string, userRole models.Role) (*FlowStateTransition, error) {
 	// Only admin and operations roles can override
 	if userRole != models.RoleAdmin && userRole != models.RoleOperations {
 		return nil, fmt.Errorf("insufficient permissions to override flow transitions; requires admin or operations role")
@@ -142,7 +152,7 @@ func (s *Service) OverrideTransition(ctx context.Context, r *http.Request, encou
 }
 
 // GetTimeline returns the flow timeline for an encounter
-func (s *Service) GetTimeline(ctx context.Context, encounterID string) (*FlowTimelineResponse, error) {
+func (s *service) GetTimeline(ctx context.Context, encounterID string) (*FlowTimelineResponse, error) {
 	transitions, err := s.repo.GetTimeline(ctx, encounterID)
 	if err != nil {
 		return nil, err
@@ -162,7 +172,7 @@ func (s *Service) GetTimeline(ctx context.Context, encounterID string) (*FlowTim
 }
 
 // GetTimelinePaginated returns the flow timeline with pagination
-func (s *Service) GetTimelinePaginated(ctx context.Context, encounterID string, limit, offset int) (*FlowTimelineResponse, error) {
+func (s *service) GetTimelinePaginated(ctx context.Context, encounterID string, limit, offset int) (*FlowTimelineResponse, error) {
 	transitions, total, err := s.repo.GetTimelinePaginated(ctx, encounterID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -187,7 +197,7 @@ func (s *Service) GetTimelinePaginated(ctx context.Context, encounterID string, 
 }
 
 // GetTimelineWithActors returns the timeline with actor details populated
-func (s *Service) GetTimelineWithActors(ctx context.Context, encounterID string) (*FlowTimelineDetailResponse, error) {
+func (s *service) GetTimelineWithActors(ctx context.Context, encounterID string) (*FlowTimelineDetailResponse, error) {
 	transitions, err := s.repo.GetTimeline(ctx, encounterID)
 	if err != nil {
 		return nil, err
@@ -226,7 +236,7 @@ func (s *Service) GetTimelineWithActors(ctx context.Context, encounterID string)
 }
 
 // GetCurrentState returns the current flow state for an encounter
-func (s *Service) GetCurrentState(ctx context.Context, encounterID string) (*FlowState, error) {
+func (s *service) GetCurrentState(ctx context.Context, encounterID string) (*FlowState, error) {
 	transition, err := s.repo.GetCurrentState(ctx, encounterID)
 	if err != nil {
 		return nil, err

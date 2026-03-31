@@ -9,8 +9,11 @@ import (
 )
 
 // RegisterRoutes registers task routes
-func RegisterRoutes(mux *http.ServeMux, db *database.DB, jwtService *auth.JWTService) {
-	handler := NewHandler(db)
+func RegisterRoutes(mux *http.ServeMux, db *database.DB, jwtService auth.TokenService) {
+	// Wire dependencies: repo -> service -> handler
+	repo := NewRepository(db)
+	service := NewService(repo, db)
+	handler := NewHandler(service, db)
 
 	// Apply auth middleware to all routes
 	authMiddleware := middleware.AuthMiddleware(jwtService)

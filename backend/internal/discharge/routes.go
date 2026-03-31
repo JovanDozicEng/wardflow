@@ -8,7 +8,7 @@ import (
 )
 
 // RegisterRoutes registers all discharge routes
-func RegisterRoutes(mux *http.ServeMux, h *Handler, jwtService *auth.JWTService) {
+func RegisterRoutes(mux *http.ServeMux, h *Handler, jwtService auth.TokenService) {
 	// All routes require authentication
 	authMiddleware := middleware.AuthMiddleware(jwtService)
 

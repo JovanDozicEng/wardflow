@@ -11,22 +11,31 @@ import (
 	"github.com/wardflow/backend/pkg/database"
 )
 
-// Service handles care team business logic
-type Service struct {
-	repo *Repository
+// Service defines the business logic interface for care team management
+type Service interface {
+	AssignRole(ctx context.Context, r *http.Request, encounterID string, req AssignRoleRequest, currentUserID string) (*CareTeamAssignment, error)
+	TransferRole(ctx context.Context, r *http.Request, assignmentID string, req TransferRoleRequest, currentUserID string) (*CareTeamAssignment, error)
+	ListCareTeam(ctx context.Context, encounterID string, activeOnly bool) ([]CareTeamAssignment, error)
+	GetHandoffs(ctx context.Context, encounterID string, limit, offset int) ([]HandoffNote, int64, error)
+	GetCareTeamWithDetails(ctx context.Context, encounterID string) (*CareTeamResponse, error)
+}
+
+// service handles care team business logic
+type service struct {
+	repo Repository
 	db   *database.DB
 }
 
 // NewService creates a new care team service
-func NewService(db *database.DB) *Service {
-	return &Service{
-		repo: NewRepository(db),
+func NewService(repo Repository, db *database.DB) Service {
+	return &service{
+		repo: repo,
 		db:   db,
 	}
 }
 
 // AssignRole assigns a user to a role in an encounter's care team
-func (s *Service) AssignRole(ctx context.Context, r *http.Request, encounterID string, req AssignRoleRequest, currentUserID string) (*CareTeamAssignment, error) {
+func (s *service) AssignRole(ctx context.Context, r *http.Request, encounterID string, req AssignRoleRequest, currentUserID string) (*CareTeamAssignment, error) {
 	// Check if there's already an active assignment for this role
 	existingAssignment, err := s.repo.GetActiveAssignmentByRole(ctx, encounterID, req.RoleType)
 	if err != nil {
@@ -69,7 +78,7 @@ func (s *Service) AssignRole(ctx context.Context, r *http.Request, encounterID s
 }
 
 // TransferRole transfers a role from one user to another with handoff documentation
-func (s *Service) TransferRole(ctx context.Context, r *http.Request, assignmentID string, req TransferRoleRequest, currentUserID string) (*CareTeamAssignment, error) {
+func (s *service) TransferRole(ctx context.Context, r *http.Request, assignmentID string, req TransferRoleRequest, currentUserID string) (*CareTeamAssignment, error) {
 	// Get the current assignment
 	currentAssignment, err := s.repo.GetAssignmentByID(ctx, assignmentID)
 	if err != nil {
@@ -163,7 +172,7 @@ func (s *Service) TransferRole(ctx context.Context, r *http.Request, assignmentI
 }
 
 // ListCareTeam returns the current active care team for an encounter
-func (s *Service) ListCareTeam(ctx context.Context, encounterID string, activeOnly bool) ([]CareTeamAssignment, error) {
+func (s *service) ListCareTeam(ctx context.Context, encounterID string, activeOnly bool) ([]CareTeamAssignment, error) {
 	if activeOnly {
 		return s.repo.GetActiveAssignments(ctx, encounterID)
 	}
@@ -171,13 +180,13 @@ func (s *Service) ListCareTeam(ctx context.Context, encounterID string, activeOn
 }
 
 // GetHandoffs returns handoff notes for an encounter with pagination
-func (s *Service) GetHandoffs(ctx context.Context, encounterID string, limit, offset int) ([]HandoffNote, int64, error) {
+func (s *service) GetHandoffs(ctx context.Context, encounterID string, limit, offset int) ([]HandoffNote, int64, error) {
 	return s.repo.GetHandoffNotesPaginated(ctx, encounterID, limit, offset)
 }
 
 // GetCareTeamWithDetails returns the current care team with user details populated
 // This is a convenience method that joins with the users table
-func (s *Service) GetCareTeamWithDetails(ctx context.Context, encounterID string) (*CareTeamResponse, error) {
+func (s *service) GetCareTeamWithDetails(ctx context.Context, encounterID string) (*CareTeamResponse, error) {
 	assignments, err := s.repo.GetActiveAssignments(ctx, encounterID)
 	if err != nil {
 		return nil, err

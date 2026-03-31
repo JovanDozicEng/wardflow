@@ -10,22 +10,27 @@ import (
 	"github.com/wardflow/backend/pkg/database"
 )
 
-// Service handles dashboard business logic
-type Service struct {
-	repo *Repository
+// Service defines the business logic interface for dashboard
+type Service interface {
+	GetHuddleMetrics(ctx context.Context, filter FilterParams, userRole models.Role, userUnitIDs, userDeptIDs models.StringArray) (*HuddleMetrics, error)
+}
+
+// service handles dashboard business logic
+type service struct {
+	repo Repository
 	db   *database.DB
 }
 
 // NewService creates a new dashboard service
-func NewService(db *database.DB) *Service {
-	return &Service{
-		repo: NewRepository(db),
+func NewService(repo Repository, db *database.DB) Service {
+	return &service{
+		repo: repo,
 		db:   db,
 	}
 }
 
 // GetHuddleMetrics aggregates all metrics for the huddle dashboard
-func (s *Service) GetHuddleMetrics(ctx context.Context, filter FilterParams, userRole models.Role, userUnitIDs, userDeptIDs models.StringArray) (*HuddleMetrics, error) {
+func (s *service) GetHuddleMetrics(ctx context.Context, filter FilterParams, userRole models.Role, userUnitIDs, userDeptIDs models.StringArray) (*HuddleMetrics, error) {
 	// Apply RBAC: non-admin users can only see their authorized units/departments
 	if userRole != models.RoleAdmin {
 		// If user has unit restrictions, apply them
@@ -192,7 +197,7 @@ func (s *Service) GetHuddleMetrics(ctx context.Context, filter FilterParams, use
 
 // Helper methods for specific calculations
 
-func (s *Service) getOverdueHighPriorityCount(ctx context.Context, filter FilterParams) (int64, error) {
+func (s *service) getOverdueHighPriorityCount(ctx context.Context, filter FilterParams) (int64, error) {
 	query := s.db.WithContext(ctx).Model(&task.Task{}).
 		Where("sla_due_at IS NOT NULL").
 		Where("sla_due_at < ?", time.Now().UTC()).
@@ -216,7 +221,7 @@ func (s *Service) getOverdueHighPriorityCount(ctx context.Context, filter Filter
 	return count, nil
 }
 
-func (s *Service) getUnassignedUrgentCount(ctx context.Context, filter FilterParams) (int64, error) {
+func (s *service) getUnassignedUrgentCount(ctx context.Context, filter FilterParams) (int64, error) {
 	query := s.db.WithContext(ctx).Model(&task.Task{}).
 		Where("current_owner_id IS NULL").
 		Where("status IN (?, ?)", task.TaskStatusOpen, task.TaskStatusInProgress).

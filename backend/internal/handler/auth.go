@@ -13,11 +13,11 @@ import (
 
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
-	authService *auth.Service
+	authService auth.AuthService
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(authService *auth.Service) *AuthHandler {
+func NewAuthHandler(authService auth.AuthService) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 	}

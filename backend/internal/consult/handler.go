@@ -16,12 +16,12 @@ import (
 
 // Handler handles consult request HTTP requests
 type Handler struct {
-	service *Service
+	service Service
 	db      *database.DB
 }
 
 // NewHandler creates a new consult request handler
-func NewHandler(service *Service, db *database.DB) *Handler {
+func NewHandler(service Service, db *database.DB) *Handler {
 	return &Handler{
 		service: service,
 		db:      db,
@@ -261,24 +261,33 @@ func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	consult, err := h.service.Redirect(r.Context(), id, &req, userCtx.UserID)
+	result, err := h.service.Redirect(r.Context(), id, &req, userCtx.UserID)
 	if err != nil {
 		logger.Error("failed to redirect consult request: %v", err)
 		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
 
-	// Write audit log
+	// Audit the closure of the original consult
 	audit.Log(r.Context(), h.db, r, audit.Entry{
 		EntityType: "consult",
-		EntityID:   consult.ID,
+		EntityID:   result.Original.ID,
 		Action:     "REDIRECT",
 		ByUserID:   userCtx.UserID,
 		Before:     before,
-		After:      consult,
+		After:      result.Original,
 	})
 
-	httputil.RespondJSON(w, http.StatusOK, consult)
+	// Audit the creation of the new consult
+	audit.Log(r.Context(), h.db, r, audit.Entry{
+		EntityType: "consult",
+		EntityID:   result.NewConsult.ID,
+		Action:     "CREATE",
+		ByUserID:   userCtx.UserID,
+		After:      result.NewConsult,
+	})
+
+	httputil.RespondJSON(w, http.StatusOK, result)
 }
 
 // Complete handles POST requests to complete a consult request

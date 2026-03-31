@@ -12,14 +12,14 @@ import (
 
 // Handler handles HTTP requests for flow tracking
 type Handler struct {
-	service *Service
+	service Service
 	db      *database.DB
 }
 
 // NewHandler creates a new flow handler
-func NewHandler(db *database.DB) *Handler {
+func NewHandler(service Service, db *database.DB) *Handler {
 	return &Handler{
-		service: NewService(db),
+		service: service,
 		db:      db,
 	}
 }

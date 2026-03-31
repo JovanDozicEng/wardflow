@@ -15,6 +15,13 @@ var (
 	ErrExpiredToken = errors.New("token has expired")
 )
 
+// TokenService defines the interface for JWT token operations
+type TokenService interface {
+	GenerateToken(user *models.User) (string, int64, error)
+	ValidateToken(tokenString string) (*Claims, error)
+	RefreshToken(tokenString string) (string, int64, error)
+}
+
 // Claims represents JWT claims
 type Claims struct {
 	UserID    string      `json:"userId"`
@@ -32,7 +39,7 @@ type JWTService struct {
 }
 
 // NewJWTService creates a new JWT service
-func NewJWTService(secretKey string, expirationHours int) *JWTService {
+func NewJWTService(secretKey string, expirationHours int) TokenService {
 	return &JWTService{
 		secretKey:  []byte(secretKey),
 		expiration: time.Duration(expirationHours) * time.Hour,

@@ -11,18 +11,31 @@ import (
 	"github.com/wardflow/backend/pkg/database"
 )
 
-// Repository handles data aggregation for dashboard
-type Repository struct {
+// Repository defines the data access interface for dashboard
+type Repository interface {
+	GetActiveEncounterCount(ctx context.Context, filter FilterParams) (int64, error)
+	GetFlowStateDistribution(ctx context.Context, filter FilterParams) (FlowDistribution, error)
+	GetOverdueTaskCount(ctx context.Context, filter FilterParams) (int64, error)
+	GetHighPriorityTaskCount(ctx context.Context, filter FilterParams, priority task.TaskPriority) (int64, error)
+	GetUnassignedTaskCount(ctx context.Context, filter FilterParams) (int64, error)
+	GetCompletedTasksTodayCount(ctx context.Context, filter FilterParams) (int64, error)
+	GetOpenTaskCount(ctx context.Context, filter FilterParams) (int64, error)
+	GetPatientsInTriageOver2hrs(ctx context.Context, filter FilterParams) (int64, error)
+	GetEncountersWithoutCareTeam(ctx context.Context, filter FilterParams) (int64, error)
+}
+
+// repository handles data aggregation for dashboard
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new dashboard repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // GetActiveEncounterCount returns count of active encounters
-func (r *Repository) GetActiveEncounterCount(ctx context.Context, filter FilterParams) (int64, error) {
+func (r *repository) GetActiveEncounterCount(ctx context.Context, filter FilterParams) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&encounter.Encounter{}).
 		Where("status = ?", encounter.EncounterStatusActive)
 
@@ -41,7 +54,7 @@ func (r *Repository) GetActiveEncounterCount(ctx context.Context, filter FilterP
 }
 
 // GetFlowStateDistribution returns count of encounters by flow state
-func (r *Repository) GetFlowStateDistribution(ctx context.Context, filter FilterParams) (FlowDistribution, error) {
+func (r *repository) GetFlowStateDistribution(ctx context.Context, filter FilterParams) (FlowDistribution, error) {
 	dist := FlowDistribution{}
 
 	// Query to get latest state per encounter
@@ -107,7 +120,7 @@ func (r *Repository) GetFlowStateDistribution(ctx context.Context, filter Filter
 }
 
 // GetOverdueTaskCount returns count of overdue tasks
-func (r *Repository) GetOverdueTaskCount(ctx context.Context, filter FilterParams) (int64, error) {
+func (r *repository) GetOverdueTaskCount(ctx context.Context, filter FilterParams) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&task.Task{}).
 		Where("sla_due_at IS NOT NULL").
 		Where("sla_due_at < ?", time.Now().UTC()).
@@ -132,7 +145,7 @@ func (r *Repository) GetOverdueTaskCount(ctx context.Context, filter FilterParam
 }
 
 // GetHighPriorityTaskCount returns count of high priority open tasks
-func (r *Repository) GetHighPriorityTaskCount(ctx context.Context, filter FilterParams, priority task.TaskPriority) (int64, error) {
+func (r *repository) GetHighPriorityTaskCount(ctx context.Context, filter FilterParams, priority task.TaskPriority) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&task.Task{}).
 		Where("priority = ?", priority).
 		Where("status IN (?, ?)", task.TaskStatusOpen, task.TaskStatusInProgress)
@@ -155,7 +168,7 @@ func (r *Repository) GetHighPriorityTaskCount(ctx context.Context, filter Filter
 }
 
 // GetUnassignedTaskCount returns count of unassigned tasks
-func (r *Repository) GetUnassignedTaskCount(ctx context.Context, filter FilterParams) (int64, error) {
+func (r *repository) GetUnassignedTaskCount(ctx context.Context, filter FilterParams) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&task.Task{}).
 		Where("current_owner_id IS NULL").
 		Where("status IN (?, ?)", task.TaskStatusOpen, task.TaskStatusInProgress)
@@ -178,7 +191,7 @@ func (r *Repository) GetUnassignedTaskCount(ctx context.Context, filter FilterPa
 }
 
 // GetCompletedTasksTodayCount returns count of tasks completed today
-func (r *Repository) GetCompletedTasksTodayCount(ctx context.Context, filter FilterParams) (int64, error) {
+func (r *repository) GetCompletedTasksTodayCount(ctx context.Context, filter FilterParams) (int64, error) {
 	startOfDay := time.Now().UTC().Truncate(24 * time.Hour)
 
 	query := r.db.WithContext(ctx).Model(&task.Task{}).
@@ -203,7 +216,7 @@ func (r *Repository) GetCompletedTasksTodayCount(ctx context.Context, filter Fil
 }
 
 // GetOpenTaskCount returns count of open tasks
-func (r *Repository) GetOpenTaskCount(ctx context.Context, filter FilterParams) (int64, error) {
+func (r *repository) GetOpenTaskCount(ctx context.Context, filter FilterParams) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&task.Task{}).
 		Where("status IN (?, ?)", task.TaskStatusOpen, task.TaskStatusInProgress)
 
@@ -225,7 +238,7 @@ func (r *Repository) GetOpenTaskCount(ctx context.Context, filter FilterParams) 
 }
 
 // GetPatientsInTriageOver2hrs returns count of patients in triage for over 2 hours
-func (r *Repository) GetPatientsInTriageOver2hrs(ctx context.Context, filter FilterParams) (int64, error) {
+func (r *repository) GetPatientsInTriageOver2hrs(ctx context.Context, filter FilterParams) (int64, error) {
 	twoHoursAgo := time.Now().UTC().Add(-2 * time.Hour)
 
 	subquery := r.db.WithContext(ctx).
@@ -259,7 +272,7 @@ func (r *Repository) GetPatientsInTriageOver2hrs(ctx context.Context, filter Fil
 }
 
 // GetEncountersWithoutCareTeam returns count of active encounters with no care team
-func (r *Repository) GetEncountersWithoutCareTeam(ctx context.Context, filter FilterParams) (int64, error) {
+func (r *repository) GetEncountersWithoutCareTeam(ctx context.Context, filter FilterParams) (int64, error) {
 	query := r.db.WithContext(ctx).
 		Table("encounters").
 		Where("status = ?", encounter.EncounterStatusActive).

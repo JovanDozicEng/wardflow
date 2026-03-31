@@ -2,10 +2,8 @@ package bed
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/wardflow/backend/internal/audit"
 	"github.com/wardflow/backend/internal/httputil"
@@ -13,17 +11,20 @@ import (
 	"github.com/wardflow/backend/pkg/auth"
 	"github.com/wardflow/backend/pkg/database"
 	"github.com/wardflow/backend/pkg/logger"
-	"gorm.io/gorm"
 )
 
 // Handler handles bed HTTP requests
 type Handler struct {
-	db *database.DB
+	service Service
+	db      *database.DB
 }
 
 // NewHandler creates a new bed handler
-func NewHandler(db *database.DB) *Handler {
-	return &Handler{db: db}
+func NewHandler(service Service, db *database.DB) *Handler {
+	return &Handler{
+		service: service,
+		db:      db,
+	}
 }
 
 // ListBeds handles GET /api/v1/beds?unitId=&status=&limit=&offset=
@@ -41,12 +42,13 @@ func (h *Handler) ListBeds(w http.ResponseWriter, r *http.Request) {
 		offset = v
 	}
 
-	tx := h.db.DB.Model(&Bed{})
-
-	// Unit-scoped RBAC
+	// Unit-scoped RBAC: apply unit filter before calling service
 	isAdmin := userCtx.Role == models.RoleAdmin
+	filteredUnitID := unitID
+	var filteredUnitIDs []string
 	if !isAdmin {
 		if unitID != "" {
+			// Validate the requested unit is in user's authorized units
 			allowed := false
 			for _, u := range userCtx.UnitIDs {
 				if u == unitID {
@@ -58,27 +60,23 @@ func (h *Handler) ListBeds(w http.ResponseWriter, r *http.Request) {
 				httputil.RespondError(w, r, http.StatusForbidden, "FORBIDDEN", "not authorized to access the requested unit")
 				return
 			}
-			tx = tx.Where("unit_id = ?", unitID)
-		} else if len(userCtx.UnitIDs) > 0 {
-			tx = tx.Where("unit_id IN ?", []string(userCtx.UnitIDs))
+		} else {
+			// Non-admin without specific unit filter: restrict to their units
+			filteredUnitIDs = userCtx.UnitIDs
+			filteredUnitID = "" // Clear single unit filter
 		}
-	} else if unitID != "" {
-		tx = tx.Where("unit_id = ?", unitID)
 	}
 
-	if status != "" {
-		tx = tx.Where("current_status = ?", status)
+	filter := ListBedsFilter{
+		UnitID:  filteredUnitID,
+		UnitIDs: filteredUnitIDs,
+		Status:  status,
+		Limit:   limit,
+		Offset:  offset,
 	}
 
-	var total int64
-	if err := tx.Count(&total).Error; err != nil {
-		logger.Error("failed to count beds: %v", err)
-		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list beds")
-		return
-	}
-
-	var beds []Bed
-	if err := tx.Limit(limit).Offset(offset).Order("room ASC, label ASC").Find(&beds).Error; err != nil {
+	beds, total, err := h.service.ListBeds(r.Context(), filter)
+	if err != nil {
 		logger.Error("failed to list beds: %v", err)
 		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list beds")
 		return
@@ -105,21 +103,11 @@ func (h *Handler) CreateBed(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 		return
 	}
-	if req.UnitID == "" || req.Room == "" || req.Label == "" {
-		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "unitId, room, and label are required")
-		return
-	}
 
-	bed := Bed{
-		UnitID:        req.UnitID,
-		Room:          req.Room,
-		Label:         req.Label,
-		Capabilities:  StringSlice(req.Capabilities),
-		CurrentStatus: BedStatusAvailable,
-	}
-	if err := h.db.DB.Create(&bed).Error; err != nil {
+	bed, err := h.service.CreateBed(r.Context(), req, userCtx.UserID)
+	if err != nil {
 		logger.Error("failed to create bed: %v", err)
-		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create bed")
+		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
 
@@ -128,21 +116,21 @@ func (h *Handler) CreateBed(w http.ResponseWriter, r *http.Request) {
 		EntityID:   bed.ID,
 		Action:     "CREATE",
 		ByUserID:   userCtx.UserID,
-		After:      bed,
+		After:      *bed,
 	})
 
-	httputil.RespondJSON(w, http.StatusCreated, bed)
+	httputil.RespondJSON(w, http.StatusCreated, *bed)
 }
 
 // GetBed handles GET /api/v1/beds/{bedId}
 func (h *Handler) GetBed(w http.ResponseWriter, r *http.Request) {
 	bedID := r.PathValue("bedId")
-	var bed Bed
-	if err := h.db.DB.First(&bed, "id = ?", bedID).Error; err != nil {
+	bed, err := h.service.GetBed(r.Context(), bedID)
+	if err != nil {
 		httputil.RespondError(w, r, http.StatusNotFound, "NOT_FOUND", "bed not found")
 		return
 	}
-	httputil.RespondJSON(w, http.StatusOK, bed)
+	httputil.RespondJSON(w, http.StatusOK, *bed)
 }
 
 // UpdateBedStatus handles POST /api/v1/beds/{bedId}/status
@@ -161,45 +149,23 @@ func (h *Handler) UpdateBedStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var bed Bed
-	if err := h.db.DB.First(&bed, "id = ?", bedID).Error; err != nil {
-		httputil.RespondError(w, r, http.StatusNotFound, "NOT_FOUND", "bed not found")
-		return
-	}
-
 	var req UpdateBedStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 		return
 	}
-	if req.Status == "" {
-		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "status is required")
+
+	event, err := h.service.UpdateBedStatus(r.Context(), bedID, req, userCtx.UserID)
+	if err != nil {
+		logger.Error("failed to update bed status: %v", err)
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
 
-	fromStatus := bed.CurrentStatus
-	event := BedStatusEvent{
-		BedID:      bedID,
-		FromStatus: &fromStatus,
-		ToStatus:   req.Status,
-		Reason:     req.Reason,
-		ChangedBy:  userCtx.UserID,
-		ChangedAt:  time.Now().UTC(),
-	}
-	if err := h.db.DB.Create(&event).Error; err != nil {
-		logger.Error("failed to create bed status event: %v", err)
-		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update bed status")
-		return
-	}
-
-	updates := map[string]any{"current_status": req.Status}
-	if req.Status != BedStatusOccupied {
-		updates["current_encounter_id"] = nil
-	}
-	if err := h.db.DB.Model(&bed).Updates(updates).Error; err != nil {
-		logger.Error("failed to update bed: %v", err)
-		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update bed")
-		return
+	fromStatus := event.FromStatus
+	var fromStatusVal BedStatus
+	if fromStatus != nil {
+		fromStatusVal = *fromStatus
 	}
 
 	audit.Log(r.Context(), h.db, r, audit.Entry{
@@ -208,11 +174,11 @@ func (h *Handler) UpdateBedStatus(w http.ResponseWriter, r *http.Request) {
 		Action:     "UPDATE",
 		ByUserID:   userCtx.UserID,
 		Reason:     req.Reason,
-		Before:     map[string]any{"status": fromStatus},
-		After:      map[string]any{"status": req.Status},
+		Before:     map[string]any{"status": fromStatusVal},
+		After:      map[string]any{"status": event.ToStatus},
 	})
 
-	httputil.RespondJSON(w, http.StatusOK, event)
+	httputil.RespondJSON(w, http.StatusOK, *event)
 }
 
 // CreateBedRequest handles POST /api/v1/encounters/{encounterId}/bed-requests
@@ -226,21 +192,10 @@ func (h *Handler) CreateBedRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	priority := req.Priority
-	if priority == "" {
-		priority = "routine"
-	}
-
-	bedReq := BedRequest{
-		EncounterID:          encounterID,
-		RequiredCapabilities: StringSlice(req.RequiredCapabilities),
-		Priority:             priority,
-		Status:               BedRequestStatusPending,
-		CreatedBy:            userCtx.UserID,
-	}
-	if err := h.db.DB.Create(&bedReq).Error; err != nil {
+	bedReq, err := h.service.CreateBedRequest(r.Context(), encounterID, userCtx.UserID, req)
+	if err != nil {
 		logger.Error("failed to create bed request: %v", err)
-		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create bed request")
+		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
 
@@ -249,10 +204,10 @@ func (h *Handler) CreateBedRequest(w http.ResponseWriter, r *http.Request) {
 		EntityID:   bedReq.ID,
 		Action:     "CREATE",
 		ByUserID:   userCtx.UserID,
-		After:      bedReq,
+		After:      *bedReq,
 	})
 
-	httputil.RespondJSON(w, http.StatusCreated, bedReq)
+	httputil.RespondJSON(w, http.StatusCreated, *bedReq)
 }
 
 // AssignBed handles POST /api/v1/bed-requests/{requestId}/assign
@@ -260,83 +215,16 @@ func (h *Handler) AssignBed(w http.ResponseWriter, r *http.Request) {
 	userCtx := auth.MustGetUserContext(r.Context())
 	requestID := r.PathValue("requestId")
 
-	var bedReq BedRequest
-	if err := h.db.DB.First(&bedReq, "id = ?", requestID).Error; err != nil {
-		httputil.RespondError(w, r, http.StatusNotFound, "NOT_FOUND", "bed request not found")
-		return
-	}
-	if bedReq.Status != BedRequestStatusPending {
-		httputil.RespondError(w, r, http.StatusBadRequest, "INVALID_STATE", "bed request is not pending")
-		return
-	}
-
 	var req AssignBedRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 		return
 	}
-	if req.BedID == "" {
-		httputil.RespondError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "bedId is required")
-		return
-	}
 
-	// Check bed is available
-	var bed Bed
-	if err := h.db.DB.First(&bed, "id = ?", req.BedID).Error; err != nil {
-		httputil.RespondError(w, r, http.StatusNotFound, "NOT_FOUND", "bed not found")
-		return
-	}
-	if bed.CurrentStatus != BedStatusAvailable {
-		httputil.RespondError(w, r, http.StatusBadRequest, "INVALID_STATE", "bed is not available for assignment")
-		return
-	}
-
-	// Update bed to occupied — wrap in transaction to prevent double-assign
-	fromStatus := bed.CurrentStatus
-	now := time.Now().UTC()
-	encID := bedReq.EncounterID
-
-	txErr := h.db.DB.Transaction(func(tx *gorm.DB) error {
-		// Re-fetch bed with lock to prevent race condition
-		var lockedBed Bed
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&lockedBed, "id = ?", req.BedID).Error; err != nil {
-			return err
-		}
-		if lockedBed.CurrentStatus != BedStatusAvailable {
-			return fmt.Errorf("bed is no longer available")
-		}
-
-		event := BedStatusEvent{
-			BedID:      req.BedID,
-			FromStatus: &fromStatus,
-			ToStatus:   BedStatusOccupied,
-			ChangedBy:  userCtx.UserID,
-			ChangedAt:  now,
-		}
-		if err := tx.Create(&event).Error; err != nil {
-			return err
-		}
-
-		if err := tx.Model(&lockedBed).Updates(map[string]any{
-			"current_status":       BedStatusOccupied,
-			"current_encounter_id": encID,
-		}).Error; err != nil {
-			return err
-		}
-
-		if err := tx.Model(&bedReq).Updates(map[string]any{
-			"status":          BedRequestStatusAssigned,
-			"assigned_bed_id": req.BedID,
-		}).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if txErr != nil {
-		logger.Error("failed to assign bed: %v", txErr)
-		httputil.RespondError(w, r, http.StatusConflict, "ASSIGN_FAILED", txErr.Error())
+	bedReq, err := h.service.AssignBed(r.Context(), requestID, req, userCtx.UserID)
+	if err != nil {
+		logger.Error("failed to assign bed: %v", err)
+		httputil.RespondError(w, r, http.StatusConflict, "ASSIGN_FAILED", err.Error())
 		return
 	}
 
@@ -345,12 +233,8 @@ func (h *Handler) AssignBed(w http.ResponseWriter, r *http.Request) {
 		EntityID:   requestID,
 		Action:     "UPDATE",
 		ByUserID:   userCtx.UserID,
-		After:      map[string]any{"status": "assigned", "bedId": req.BedID},
+		After:      map[string]any{"status": "assigned", "bedId": bedReq.AssignedBedID},
 	})
 
-	if err := h.db.DB.First(&bedReq, "id = ?", requestID).Error; err != nil {
-		httputil.RespondError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated bed request")
-		return
-	}
-	httputil.RespondJSON(w, http.StatusOK, bedReq)
+	httputil.RespondJSON(w, http.StatusOK, *bedReq)
 }

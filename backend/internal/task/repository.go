@@ -9,18 +9,30 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository handles data access for tasks
-type Repository struct {
+// Repository defines the data access interface for tasks
+type Repository interface {
+	Create(ctx context.Context, task *Task) error
+	Update(ctx context.Context, task *Task) error
+	GetByID(ctx context.Context, taskID string) (*Task, error)
+	List(ctx context.Context, filter ListTasksFilter) ([]Task, int64, error)
+	CreateAssignmentEvent(ctx context.Context, event *TaskAssignmentEvent) error
+	GetAssignmentHistory(ctx context.Context, taskID string) ([]TaskAssignmentEvent, error)
+	GetAssignmentHistoryPaginated(ctx context.Context, taskID string, limit, offset int) ([]TaskAssignmentEvent, int64, error)
+	Delete(ctx context.Context, taskID string) error
+}
+
+// repository handles data access for tasks
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new task repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // Create creates a new task
-func (r *Repository) Create(ctx context.Context, task *Task) error {
+func (r *repository) Create(ctx context.Context, task *Task) error {
 	if err := r.db.WithContext(ctx).Create(task).Error; err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
@@ -28,7 +40,7 @@ func (r *Repository) Create(ctx context.Context, task *Task) error {
 }
 
 // Update updates a task
-func (r *Repository) Update(ctx context.Context, task *Task) error {
+func (r *repository) Update(ctx context.Context, task *Task) error {
 	if err := r.db.WithContext(ctx).Save(task).Error; err != nil {
 		return fmt.Errorf("failed to update task: %w", err)
 	}
@@ -36,7 +48,7 @@ func (r *Repository) Update(ctx context.Context, task *Task) error {
 }
 
 // GetByID retrieves a task by ID
-func (r *Repository) GetByID(ctx context.Context, taskID string) (*Task, error) {
+func (r *repository) GetByID(ctx context.Context, taskID string) (*Task, error) {
 	var task Task
 	err := r.db.WithContext(ctx).
 		Where("id = ?", taskID).
@@ -52,7 +64,7 @@ func (r *Repository) GetByID(ctx context.Context, taskID string) (*Task, error) 
 }
 
 // List retrieves tasks with filters and pagination
-func (r *Repository) List(ctx context.Context, filter ListTasksFilter) ([]Task, int64, error) {
+func (r *repository) List(ctx context.Context, filter ListTasksFilter) ([]Task, int64, error) {
 	query := r.db.WithContext(ctx).Model(&Task{})
 
 	// Apply filters
@@ -104,7 +116,7 @@ func (r *Repository) List(ctx context.Context, filter ListTasksFilter) ([]Task, 
 }
 
 // CreateAssignmentEvent creates a new task assignment event
-func (r *Repository) CreateAssignmentEvent(ctx context.Context, event *TaskAssignmentEvent) error {
+func (r *repository) CreateAssignmentEvent(ctx context.Context, event *TaskAssignmentEvent) error {
 	if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
 		return fmt.Errorf("failed to create assignment event: %w", err)
 	}
@@ -112,7 +124,7 @@ func (r *Repository) CreateAssignmentEvent(ctx context.Context, event *TaskAssig
 }
 
 // GetAssignmentHistory retrieves assignment history for a task
-func (r *Repository) GetAssignmentHistory(ctx context.Context, taskID string) ([]TaskAssignmentEvent, error) {
+func (r *repository) GetAssignmentHistory(ctx context.Context, taskID string) ([]TaskAssignmentEvent, error) {
 	var events []TaskAssignmentEvent
 	err := r.db.WithContext(ctx).
 		Where("task_id = ?", taskID).
@@ -126,7 +138,7 @@ func (r *Repository) GetAssignmentHistory(ctx context.Context, taskID string) ([
 }
 
 // GetAssignmentHistoryPaginated retrieves assignment history with pagination
-func (r *Repository) GetAssignmentHistoryPaginated(ctx context.Context, taskID string, limit, offset int) ([]TaskAssignmentEvent, int64, error) {
+func (r *repository) GetAssignmentHistoryPaginated(ctx context.Context, taskID string, limit, offset int) ([]TaskAssignmentEvent, int64, error) {
 	var events []TaskAssignmentEvent
 	var total int64
 
@@ -155,7 +167,7 @@ func (r *Repository) GetAssignmentHistoryPaginated(ctx context.Context, taskID s
 
 // Delete soft deletes a task (if we add soft delete support later)
 // For now, tasks are never deleted, only cancelled
-func (r *Repository) Delete(ctx context.Context, taskID string) error {
+func (r *repository) Delete(ctx context.Context, taskID string) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ?", taskID).
 		Delete(&Task{})

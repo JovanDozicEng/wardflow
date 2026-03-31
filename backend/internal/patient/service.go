@@ -6,18 +6,25 @@ import (
 	"time"
 )
 
-// Service handles patient business logic
-type Service struct {
-	repo *Repository
+// Service defines the interface for patient business logic
+type Service interface {
+	Create(ctx context.Context, req *CreatePatientRequest, byUserID string) (*Patient, error)
+	GetByID(ctx context.Context, id string) (*Patient, error)
+	List(ctx context.Context, f ListPatientsFilter) ([]*Patient, int64, error)
+}
+
+// service handles patient business logic
+type service struct {
+	repo Repository
 }
 
 // NewService creates a new patient service
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository) Service {
+	return &service{repo: repo}
 }
 
 // Create creates a new patient with validation
-func (s *Service) Create(ctx context.Context, req *CreatePatientRequest, byUserID string) (*Patient, error) {
+func (s *service) Create(ctx context.Context, req *CreatePatientRequest, byUserID string) (*Patient, error) {
 	// Validate required fields
 	if req.FirstName == "" {
 		return nil, errors.New("firstName is required")
@@ -53,11 +60,11 @@ func (s *Service) Create(ctx context.Context, req *CreatePatientRequest, byUserI
 }
 
 // GetByID retrieves a patient by ID
-func (s *Service) GetByID(ctx context.Context, id string) (*Patient, error) {
+func (s *service) GetByID(ctx context.Context, id string) (*Patient, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
 // List retrieves patients based on filters
-func (s *Service) List(ctx context.Context, f ListPatientsFilter) ([]*Patient, int64, error) {
+func (s *service) List(ctx context.Context, f ListPatientsFilter) ([]*Patient, int64, error) {
 	return s.repo.List(ctx, f)
 }

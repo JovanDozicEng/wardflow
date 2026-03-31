@@ -12,14 +12,14 @@ import (
 
 // Handler handles HTTP requests for task management
 type Handler struct {
-	service *Service
+	service Service
 	db      *database.DB
 }
 
 // NewHandler creates a new task handler
-func NewHandler(db *database.DB) *Handler {
+func NewHandler(service Service, db *database.DB) *Handler {
 	return &Handler{
-		service: NewService(db),
+		service: service,
 		db:      db,
 	}
 }

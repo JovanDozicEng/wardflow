@@ -11,23 +11,31 @@ import (
 // ErrNotFound is returned when a consult request is not found
 var ErrNotFound = errors.New("consult request not found")
 
-// Repository handles consult request data access
-type Repository struct {
+// Repository defines the interface for consult request data access
+type Repository interface {
+	Create(ctx context.Context, c *ConsultRequest) error
+	GetByID(ctx context.Context, id string) (*ConsultRequest, error)
+	List(ctx context.Context, f ListConsultsFilter) ([]*ConsultRequest, int64, error)
+	Update(ctx context.Context, c *ConsultRequest) error
+}
+
+// repository handles consult request data access
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new consult request repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // Create creates a new consult request
-func (r *Repository) Create(ctx context.Context, c *ConsultRequest) error {
+func (r *repository) Create(ctx context.Context, c *ConsultRequest) error {
 	return r.db.WithContext(ctx).Create(c).Error
 }
 
 // GetByID retrieves a consult request by ID
-func (r *Repository) GetByID(ctx context.Context, id string) (*ConsultRequest, error) {
+func (r *repository) GetByID(ctx context.Context, id string) (*ConsultRequest, error) {
 	var consult ConsultRequest
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&consult).Error
 	if err != nil {
@@ -40,15 +48,16 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*ConsultRequest, e
 }
 
 // List retrieves consult requests based on filters
-func (r *Repository) List(ctx context.Context, f ListConsultsFilter) ([]*ConsultRequest, int64, error) {
+func (r *repository) List(ctx context.Context, f ListConsultsFilter) ([]*ConsultRequest, int64, error) {
 	var consults []*ConsultRequest
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&ConsultRequest{})
 
 	// Apply filters
+	// consult_requests has no unit_id column; resolve via encounter subquery
 	if f.UnitID != "" {
-		query = query.Where("unit_id = ?", f.UnitID)
+		query = query.Where("encounter_id IN (SELECT id FROM encounters WHERE unit_id = ?)", f.UnitID)
 	}
 	if f.Status != "" {
 		query = query.Where("status = ?", f.Status)
@@ -81,7 +90,7 @@ func (r *Repository) List(ctx context.Context, f ListConsultsFilter) ([]*Consult
 }
 
 // Update updates a consult request
-func (r *Repository) Update(ctx context.Context, c *ConsultRequest) error {
+func (r *repository) Update(ctx context.Context, c *ConsultRequest) error {
 	result := r.db.WithContext(ctx).Save(c)
 	if result.Error != nil {
 		return result.Error

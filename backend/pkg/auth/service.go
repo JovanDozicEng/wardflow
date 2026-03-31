@@ -19,14 +19,23 @@ var (
 	ErrUserInactive      = errors.New("user account is inactive")
 )
 
+// AuthService defines the interface for authentication operations
+type AuthService interface {
+	Register(ctx context.Context, req *models.RegisterRequest) (*models.User, error)
+	Login(ctx context.Context, req *models.LoginRequest) (*models.LoginResponse, error)
+	GetUserByID(ctx context.Context, userID string) (*models.User, error)
+	ChangePassword(ctx context.Context, userID string, req *models.ChangePasswordRequest) error
+	DeactivateUser(ctx context.Context, userID string) error
+}
+
 // Service handles authentication operations
 type Service struct {
 	db         *database.DB
-	jwtService *JWTService
+	jwtService TokenService
 }
 
 // NewService creates a new auth service
-func NewService(db *database.DB, jwtService *JWTService) *Service {
+func NewService(db *database.DB, jwtService TokenService) AuthService {
 	return &Service{
 		db:         db,
 		jwtService: jwtService,

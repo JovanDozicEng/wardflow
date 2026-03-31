@@ -70,6 +70,12 @@ type RedirectConsultRequest struct {
 	Reason        string `json:"reason"`
 }
 
+// RedirectResult holds both the closed original consult and the newly created one
+type RedirectResult struct {
+	Original  *ConsultRequest `json:"original"`
+	NewConsult *ConsultRequest `json:"newConsult"`
+}
+
 // ListConsultsFilter holds filters for listing consult requests
 type ListConsultsFilter struct {
 	UnitID        string

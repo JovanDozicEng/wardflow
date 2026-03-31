@@ -9,18 +9,29 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository handles data access for flow state transitions
-type Repository struct {
+// Repository defines the data access interface for flow state transitions
+type Repository interface {
+	CreateTransition(ctx context.Context, transition *FlowStateTransition) error
+	GetTimeline(ctx context.Context, encounterID string) ([]FlowStateTransition, error)
+	GetTimelinePaginated(ctx context.Context, encounterID string, limit, offset int) ([]FlowStateTransition, int64, error)
+	GetCurrentState(ctx context.Context, encounterID string) (*FlowStateTransition, error)
+	GetTransitionByID(ctx context.Context, transitionID string) (*FlowStateTransition, error)
+	GetTransitionsSince(ctx context.Context, encounterID string, since time.Time) ([]FlowStateTransition, error)
+	GetTransitionsByState(ctx context.Context, encounterID string, state FlowState) ([]FlowStateTransition, error)
+}
+
+// repository handles data access for flow state transitions
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new flow repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // CreateTransition creates a new flow state transition
-func (r *Repository) CreateTransition(ctx context.Context, transition *FlowStateTransition) error {
+func (r *repository) CreateTransition(ctx context.Context, transition *FlowStateTransition) error {
 	if err := r.db.WithContext(ctx).Create(transition).Error; err != nil {
 		return fmt.Errorf("failed to create flow transition: %w", err)
 	}
@@ -28,7 +39,7 @@ func (r *Repository) CreateTransition(ctx context.Context, transition *FlowState
 }
 
 // GetTimeline returns all transitions for an encounter, ordered chronologically
-func (r *Repository) GetTimeline(ctx context.Context, encounterID string) ([]FlowStateTransition, error) {
+func (r *repository) GetTimeline(ctx context.Context, encounterID string) ([]FlowStateTransition, error) {
 	var transitions []FlowStateTransition
 	err := r.db.WithContext(ctx).
 		Where("encounter_id = ?", encounterID).
@@ -42,7 +53,7 @@ func (r *Repository) GetTimeline(ctx context.Context, encounterID string) ([]Flo
 }
 
 // GetTimelinePaginated returns transitions with pagination
-func (r *Repository) GetTimelinePaginated(ctx context.Context, encounterID string, limit, offset int) ([]FlowStateTransition, int64, error) {
+func (r *repository) GetTimelinePaginated(ctx context.Context, encounterID string, limit, offset int) ([]FlowStateTransition, int64, error) {
 	var transitions []FlowStateTransition
 	var total int64
 
@@ -70,7 +81,7 @@ func (r *Repository) GetTimelinePaginated(ctx context.Context, encounterID strin
 }
 
 // GetCurrentState returns the most recent state for an encounter
-func (r *Repository) GetCurrentState(ctx context.Context, encounterID string) (*FlowStateTransition, error) {
+func (r *repository) GetCurrentState(ctx context.Context, encounterID string) (*FlowStateTransition, error) {
 	var transition FlowStateTransition
 	err := r.db.WithContext(ctx).
 		Where("encounter_id = ?", encounterID).
@@ -87,7 +98,7 @@ func (r *Repository) GetCurrentState(ctx context.Context, encounterID string) (*
 }
 
 // GetTransitionByID retrieves a specific transition by ID
-func (r *Repository) GetTransitionByID(ctx context.Context, transitionID string) (*FlowStateTransition, error) {
+func (r *repository) GetTransitionByID(ctx context.Context, transitionID string) (*FlowStateTransition, error) {
 	var transition FlowStateTransition
 	err := r.db.WithContext(ctx).
 		Where("id = ?", transitionID).
@@ -103,7 +114,7 @@ func (r *Repository) GetTransitionByID(ctx context.Context, transitionID string)
 }
 
 // GetTransitionsSince returns transitions after a specific timestamp
-func (r *Repository) GetTransitionsSince(ctx context.Context, encounterID string, since time.Time) ([]FlowStateTransition, error) {
+func (r *repository) GetTransitionsSince(ctx context.Context, encounterID string, since time.Time) ([]FlowStateTransition, error) {
 	var transitions []FlowStateTransition
 	err := r.db.WithContext(ctx).
 		Where("encounter_id = ? AND transitioned_at > ?", encounterID, since).
@@ -117,7 +128,7 @@ func (r *Repository) GetTransitionsSince(ctx context.Context, encounterID string
 }
 
 // GetTransitionsByState returns transitions to a specific state
-func (r *Repository) GetTransitionsByState(ctx context.Context, encounterID string, state FlowState) ([]FlowStateTransition, error) {
+func (r *repository) GetTransitionsByState(ctx context.Context, encounterID string, state FlowState) ([]FlowStateTransition, error) {
 	var transitions []FlowStateTransition
 	err := r.db.WithContext(ctx).
 		Where("encounter_id = ? AND to_state = ?", encounterID, state).

@@ -11,7 +11,7 @@ import (
 )
 
 // AuthMiddleware verifies JWT tokens and adds user context
-func AuthMiddleware(jwtService *auth.JWTService) func(http.Handler) http.Handler {
+func AuthMiddleware(jwtService auth.TokenService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Extract token from Authorization header
@@ -122,7 +122,7 @@ func RequireUnitAccess(getUnitID func(*http.Request) string) func(http.Handler) 
 }
 
 // OptionalAuth adds user context if token is present, but doesn't require it
-func OptionalAuth(jwtService *auth.JWTService) func(http.Handler) http.Handler {
+func OptionalAuth(jwtService auth.TokenService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")

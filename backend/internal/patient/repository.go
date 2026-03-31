@@ -11,23 +11,30 @@ import (
 // ErrNotFound is returned when a patient is not found
 var ErrNotFound = errors.New("patient not found")
 
-// Repository handles patient data access
-type Repository struct {
+// Repository defines the interface for patient data access
+type Repository interface {
+	Create(ctx context.Context, p *Patient) error
+	GetByID(ctx context.Context, id string) (*Patient, error)
+	List(ctx context.Context, f ListPatientsFilter) ([]*Patient, int64, error)
+}
+
+// repository handles patient data access
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new patient repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // Create creates a new patient
-func (r *Repository) Create(ctx context.Context, p *Patient) error {
+func (r *repository) Create(ctx context.Context, p *Patient) error {
 	return r.db.WithContext(ctx).Create(p).Error
 }
 
 // GetByID retrieves a patient by ID
-func (r *Repository) GetByID(ctx context.Context, id string) (*Patient, error) {
+func (r *repository) GetByID(ctx context.Context, id string) (*Patient, error) {
 	var patient Patient
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&patient).Error
 	if err != nil {
@@ -40,7 +47,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Patient, error) {
 }
 
 // List retrieves patients based on filters
-func (r *Repository) List(ctx context.Context, f ListPatientsFilter) ([]*Patient, int64, error) {
+func (r *repository) List(ctx context.Context, f ListPatientsFilter) ([]*Patient, int64, error) {
 	var patients []*Patient
 	var total int64
 

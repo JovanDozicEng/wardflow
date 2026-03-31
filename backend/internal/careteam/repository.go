@@ -9,18 +9,31 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository handles data access for care team assignments
-type Repository struct {
+// Repository defines the data access interface for care team assignments
+type Repository interface {
+	CreateAssignment(ctx context.Context, assignment *CareTeamAssignment) error
+	EndAssignment(ctx context.Context, assignmentID string, endsAt time.Time) error
+	GetActiveAssignments(ctx context.Context, encounterID string) ([]CareTeamAssignment, error)
+	GetActiveAssignmentByRole(ctx context.Context, encounterID string, roleType RoleType) (*CareTeamAssignment, error)
+	GetAssignmentHistory(ctx context.Context, encounterID string) ([]CareTeamAssignment, error)
+	GetAssignmentByID(ctx context.Context, assignmentID string) (*CareTeamAssignment, error)
+	CreateHandoffNote(ctx context.Context, note *HandoffNote) error
+	GetHandoffNotes(ctx context.Context, encounterID string) ([]HandoffNote, error)
+	GetHandoffNotesPaginated(ctx context.Context, encounterID string, limit, offset int) ([]HandoffNote, int64, error)
+}
+
+// repository handles data access for care team assignments
+type repository struct {
 	db *database.DB
 }
 
 // NewRepository creates a new care team repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *database.DB) Repository {
+	return &repository{db: db}
 }
 
 // CreateAssignment creates a new care team assignment
-func (r *Repository) CreateAssignment(ctx context.Context, assignment *CareTeamAssignment) error {
+func (r *repository) CreateAssignment(ctx context.Context, assignment *CareTeamAssignment) error {
 	if err := r.db.WithContext(ctx).Create(assignment).Error; err != nil {
 		return fmt.Errorf("failed to create care team assignment: %w", err)
 	}
@@ -28,7 +41,7 @@ func (r *Repository) CreateAssignment(ctx context.Context, assignment *CareTeamA
 }
 
 // EndAssignment ends an active assignment by setting EndsAt timestamp
-func (r *Repository) EndAssignment(ctx context.Context, assignmentID string, endsAt time.Time) error {
+func (r *repository) EndAssignment(ctx context.Context, assignmentID string, endsAt time.Time) error {
 	result := r.db.WithContext(ctx).
 		Model(&CareTeamAssignment{}).
 		Where("id = ? AND ends_at IS NULL", assignmentID).
@@ -44,7 +57,7 @@ func (r *Repository) EndAssignment(ctx context.Context, assignmentID string, end
 }
 
 // GetActiveAssignments returns all active assignments for an encounter
-func (r *Repository) GetActiveAssignments(ctx context.Context, encounterID string) ([]CareTeamAssignment, error) {
+func (r *repository) GetActiveAssignments(ctx context.Context, encounterID string) ([]CareTeamAssignment, error) {
 	var assignments []CareTeamAssignment
 	err := r.db.WithContext(ctx).
 		Where("encounter_id = ? AND ends_at IS NULL", encounterID).
@@ -58,7 +71,7 @@ func (r *Repository) GetActiveAssignments(ctx context.Context, encounterID strin
 }
 
 // GetActiveAssignmentByRole returns the current active assignment for a specific role
-func (r *Repository) GetActiveAssignmentByRole(ctx context.Context, encounterID string, roleType RoleType) (*CareTeamAssignment, error) {
+func (r *repository) GetActiveAssignmentByRole(ctx context.Context, encounterID string, roleType RoleType) (*CareTeamAssignment, error) {
 	var assignment CareTeamAssignment
 	err := r.db.WithContext(ctx).
 		Where("encounter_id = ? AND role_type = ? AND ends_at IS NULL", encounterID, roleType).
@@ -74,7 +87,7 @@ func (r *Repository) GetActiveAssignmentByRole(ctx context.Context, encounterID 
 }
 
 // GetAssignmentHistory returns all assignments (active and ended) for an encounter
-func (r *Repository) GetAssignmentHistory(ctx context.Context, encounterID string) ([]CareTeamAssignment, error) {
+func (r *repository) GetAssignmentHistory(ctx context.Context, encounterID string) ([]CareTeamAssignment, error) {
 	var assignments []CareTeamAssignment
 	err := r.db.WithContext(ctx).
 		Preload("HandoffNote").
@@ -89,7 +102,7 @@ func (r *Repository) GetAssignmentHistory(ctx context.Context, encounterID strin
 }
 
 // GetAssignmentByID retrieves a specific assignment by ID
-func (r *Repository) GetAssignmentByID(ctx context.Context, assignmentID string) (*CareTeamAssignment, error) {
+func (r *repository) GetAssignmentByID(ctx context.Context, assignmentID string) (*CareTeamAssignment, error) {
 	var assignment CareTeamAssignment
 	err := r.db.WithContext(ctx).
 		Preload("HandoffNote").
@@ -106,7 +119,7 @@ func (r *Repository) GetAssignmentByID(ctx context.Context, assignmentID string)
 }
 
 // CreateHandoffNote creates a new handoff note
-func (r *Repository) CreateHandoffNote(ctx context.Context, note *HandoffNote) error {
+func (r *repository) CreateHandoffNote(ctx context.Context, note *HandoffNote) error {
 	if err := r.db.WithContext(ctx).Create(note).Error; err != nil {
 		return fmt.Errorf("failed to create handoff note: %w", err)
 	}
@@ -114,7 +127,7 @@ func (r *Repository) CreateHandoffNote(ctx context.Context, note *HandoffNote) e
 }
 
 // GetHandoffNotes returns all handoff notes for an encounter
-func (r *Repository) GetHandoffNotes(ctx context.Context, encounterID string) ([]HandoffNote, error) {
+func (r *repository) GetHandoffNotes(ctx context.Context, encounterID string) ([]HandoffNote, error) {
 	var notes []HandoffNote
 	err := r.db.WithContext(ctx).
 		Where("encounter_id = ?", encounterID).
@@ -128,7 +141,7 @@ func (r *Repository) GetHandoffNotes(ctx context.Context, encounterID string) ([
 }
 
 // GetHandoffNotesPaginated returns handoff notes with pagination
-func (r *Repository) GetHandoffNotesPaginated(ctx context.Context, encounterID string, limit, offset int) ([]HandoffNote, int64, error) {
+func (r *repository) GetHandoffNotesPaginated(ctx context.Context, encounterID string, limit, offset int) ([]HandoffNote, int64, error) {
 	var notes []HandoffNote
 	var total int64
 
